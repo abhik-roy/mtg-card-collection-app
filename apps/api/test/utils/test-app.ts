@@ -4,10 +4,10 @@ import { existsSync, mkdtempSync, copyFileSync, unlinkSync, rmSync } from 'fs';
 import { randomUUID } from 'crypto';
 import { tmpdir } from 'os';
 import * as path from 'path';
-import { AppModule } from '../../src/app.module';
 import { ScryfallClient } from '../../src/shared/infra/http/scryfall.client';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { ProblemDetailsFilter } from '../../src/shared/presentation/problem.filter';
+import { PrismaService } from '../../src/shared/infra/prisma/prisma.service';
 
 export type FakeScryfall = {
   searchByNamePrefix: jest.MockedFunction<ScryfallClient['searchByNamePrefix']>;
@@ -23,15 +23,22 @@ export type TestApp = {
 };
 
 export async function createTestApp(
-  seedDbPath = path.resolve(__dirname, '../../dev.sqlite'),
+  seedDbPath = path.resolve(__dirname, '../../prisma/dev.sqlite'),
 ): Promise<TestApp> {
   const previousDbUrl = process.env.DATABASE_URL;
   const tempDir = mkdtempSync(path.join(tmpdir(), 'mtg-tests-'));
   const dbPath = path.join(tempDir, `test-db-${randomUUID()}.sqlite`);
   copyFileSync(seedDbPath, dbPath);
   process.env.DATABASE_URL = `file:${dbPath}`;
+  const previousJwtSecret = process.env.JWT_SECRET;
+  const previousJwtExpires = process.env.JWT_EXPIRES_IN;
+  const previousSaltRounds = process.env.BCRYPT_SALT_ROUNDS;
+  process.env.JWT_SECRET = previousJwtSecret ?? 'test-secret';
+  process.env.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? '1h';
+  process.env.BCRYPT_SALT_ROUNDS = '4';
 
   const { fakeScryfall } = createFakeScryfall();
+  const { AppModule } = await import('../../src/app.module');
 
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
@@ -46,12 +53,31 @@ export async function createTestApp(
   app.useGlobalFilters(new ProblemDetailsFilter());
   await app.init();
 
+  const prisma = app.get(PrismaService);
+  await prisma.priceWatch.deleteMany({});
+  await prisma.collectionEntry.deleteMany({});
+
   const close = async () => {
     await app.close();
     if (previousDbUrl !== undefined) {
       process.env.DATABASE_URL = previousDbUrl;
     } else {
       delete process.env.DATABASE_URL;
+    }
+    if (previousJwtSecret !== undefined) {
+      process.env.JWT_SECRET = previousJwtSecret;
+    } else {
+      delete process.env.JWT_SECRET;
+    }
+    if (previousJwtExpires !== undefined) {
+      process.env.JWT_EXPIRES_IN = previousJwtExpires;
+    } else {
+      delete process.env.JWT_EXPIRES_IN;
+    }
+    if (previousSaltRounds !== undefined) {
+      process.env.BCRYPT_SALT_ROUNDS = previousSaltRounds;
+    } else {
+      delete process.env.BCRYPT_SALT_ROUNDS;
     }
     try {
       if (existsSync(dbPath)) unlinkSync(dbPath);

@@ -6,6 +6,7 @@ import {
 
 export type RemoveEntryCommandInput = {
   id: string;
+  userId: string;
 };
 
 @Injectable()
@@ -16,7 +17,7 @@ export class RemoveEntryCommand {
   ) {}
 
   async execute(input: RemoveEntryCommandInput): Promise<void> {
-    const entry = await this.collectionRepository.findById(input.id);
+    const entry = await this.collectionRepository.findById(input.id, input.userId);
     if (!entry) {
       throw new NotFoundException({
         error: {
@@ -26,6 +27,6 @@ export class RemoveEntryCommand {
       });
     }
 
-    await this.collectionRepository.delete(input.id);
+    await this.collectionRepository.delete(input.id, input.userId);
   }
 }

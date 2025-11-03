@@ -4,6 +4,7 @@ import { Condition } from '../value-objects/condition.vo';
 import { Finish } from '../value-objects/finish.vo';
 
 export interface CollectionEntryProps {
+  userId: string;
   cardId: string;
   quantity: number;
   finish: Finish;
@@ -36,6 +37,10 @@ export class CollectionEntry extends Entity<CollectionEntryProps> {
 
   get cardId(): string {
     return this.props.cardId;
+  }
+
+  get userId(): string {
+    return this.props.userId;
   }
 
   get quantity(): number {
@@ -86,7 +91,7 @@ export class CollectionEntry extends Entity<CollectionEntryProps> {
     this.touch();
   }
 
-  updateDetails(partial: Partial<Omit<CollectionEntryProps, 'cardId' | 'id'>>) {
+  updateDetails(partial: Partial<Omit<CollectionEntryProps, 'cardId' | 'id' | 'userId'>>) {
     if (partial.quantity !== undefined && partial.quantity < 0) {
       throw new Error('Quantity must be >= 0');
     }

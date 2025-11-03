@@ -33,6 +33,7 @@ enum PriceType {
 
 model CollectionEntry {
   id            String    @id @default(cuid())
+  userId        String?
   cardId        String
   quantity      Int       @default(1)
   finish        Finish    @default(NONFOIL)
@@ -46,6 +47,7 @@ model CollectionEntry {
   updatedAt     DateTime  @updatedAt
 
   catalogCache  CatalogCache? @relation(fields: [cardId], references: [cardId])
+  user          User?         @relation(fields: [userId], references: [id])
 }
 
 model CatalogCache {
@@ -81,4 +83,49 @@ model PriceWatch {
 
   @@index([cardId])
   @@index([contact])
+}
+
+model User {
+  id                String            @id @default(cuid())
+  email             String            @unique
+  passwordHash      String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  collectionEntries CollectionEntry[]
+  decks             Deck[]
+}
+
+model Deck {
+  id          String     @id @default(cuid())
+  userId      String
+  name        String
+  format      String?
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user  User      @relation(fields: [userId], references: [id])
+  cards DeckCard[]
+
+  @@index([userId])
+}
+
+enum DeckBoard {
+  MAIN
+  SIDE
+}
+
+model DeckCard {
+  id        String    @id @default(cuid())
+  deckId    String
+  cardId    String
+  quantity  Int
+  board     DeckBoard @default(MAIN)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  deck Deck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+
+  @@unique([deckId, cardId, board])
+  @@index([deckId])
 }

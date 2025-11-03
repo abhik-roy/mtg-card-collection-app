@@ -8,6 +8,8 @@
   - `catalog` – read-only Scryfall integration
   - `collection` – user-owned inventory, import/export
   - `alerts` – price watch automation, Scryfall polling
+  - `auth` – JWT issuance/validation and user provisioning
+  - `decks` – decklist CRUD and collection comparison
 - **Shared Infrastructure:**
   - Prisma service (`shared/infra/prisma`)
   - Scryfall client with in-memory LRU cache (`shared/infra/http`)
@@ -16,11 +18,13 @@
 
 ## Key Flows
 
-1. **Catalog Search** → controller → query handler → repository → Scryfall client → mapper → DTO.
-2. **Collection Mutations** → controller DTO validation → command (domain invariants) → Prisma repository → cache hydration (Scryfall `getById`).
-3. **Import** → text parser → per-line Scryfall fuzzy lookup → collection command.
-4. **Export** → repository bulk fetch → CSV/Moxfield formatter → streamed response.
-5. **Price Watches** → baseline service ensures auto watches for every binder card; manual watches stored via Prisma. Scheduler (`PriceSpikeMonitorService`) polls Scryfall, compares against `lastPrice`, triggers notification gateway (Discord > email > logging).
+1. **Authentication** → controller → auth service (bcrypt hashing + Prisma) → JWT issued via `@nestjs/jwt`.
+2. **Catalog Search** → controller → query handler → repository → Scryfall client → mapper → DTO.
+3. **Collection Mutations** → controller DTO validation → command (domain invariants) → Prisma repository → cache hydration (Scryfall `getById`).
+4. **Import** → text parser → per-line Scryfall fuzzy lookup → collection command.
+5. **Export** → repository bulk fetch → CSV/Moxfield formatter → streamed response.
+6. **Price Watches** → baseline service ensures auto watches for every binder card; manual watches stored via Prisma. Scheduler (`PriceSpikeMonitorService`) polls Scryfall, compares against `lastPrice`, triggers notification gateway (Discord > email > logging).
+7. **Deck Comparison** → controller → decks service (Prisma) → collection aggregate query → diff summary returned per board.
 
 ## Notifications
 
@@ -45,6 +49,9 @@ See `.env.example`.
 Essential:
 - `DATABASE_URL` – SQLite path (copied per test).
 - `SCRYFALL_CACHE_TTL_MS` – in-memory cache TTL.
+- `JWT_SECRET` – signing key for API tokens.
+- `JWT_EXPIRES_IN` – token lifetime (e.g. `1h`).
+- `BCRYPT_SALT_ROUNDS` – hashing cost (lowered to 4 in tests).
 - `SMTP_*` – optional for email.
 - `DISCORD_WEBHOOK_URL` – optional for Discord alerts.
 
@@ -53,5 +60,5 @@ Essential:
 - Frontend rewrite (current directory removed per plan).
 - Expand integration tests (alerts scheduling, export content verification).
 - Consider background job queue for spike processing when scaling.
-- Add authentication if multi-user scope emerges.
-
+- Flesh out deck analytics (hand smoothing, archetype tags).
+- Extend auth to support refresh tokens and OAuth providers.

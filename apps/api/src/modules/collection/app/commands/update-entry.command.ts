@@ -8,6 +8,7 @@ import { Finish } from '../../domain/value-objects/finish.vo';
 
 export type UpdateEntryCommandInput = {
   id: string;
+  userId: string;
   quantity?: number;
   finish?: string;
   condition?: string;
@@ -26,7 +27,7 @@ export class UpdateEntryCommand {
   ) {}
 
   async execute(input: UpdateEntryCommandInput): Promise<void> {
-    const entry = await this.collectionRepository.findById(input.id);
+    const entry = await this.collectionRepository.findById(input.id, input.userId);
 
     if (!entry) {
       throw new NotFoundException({

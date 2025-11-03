@@ -38,6 +38,7 @@ describe('ImportCollectionCommand', () => {
 
   it('imports entries successfully', async () => {
     const result = await command.execute({
+      userId: 'user-1',
       payload: '2 Lightning Bolt (2ED) 150 [FOIL]',
     });
 
@@ -51,6 +52,7 @@ describe('ImportCollectionCommand', () => {
     (scryfallClient.findByName as jest.Mock).mockRejectedValueOnce(new Error('not found'));
 
     const result = await command.execute({
+      userId: 'user-1',
       payload: '1 Missing Card',
     });
 

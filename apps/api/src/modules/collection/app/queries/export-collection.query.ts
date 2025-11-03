@@ -16,6 +16,7 @@ export type ExportCollectionQueryFilters = {
 };
 
 export type ExportCollectionQueryInput = {
+  userId: string;
   format: CollectionExportFormat;
   includePrices?: boolean;
   filters?: ExportCollectionQueryFilters;
@@ -31,6 +32,7 @@ export class ExportCollectionQuery {
   async execute(input: ExportCollectionQueryInput): Promise<CollectionExportResult> {
     const filters = input.filters ?? {};
     const items = await this.collectionRepository.findAll({
+      userId: input.userId,
       q: filters.q,
       setCode: filters.setCode,
     });

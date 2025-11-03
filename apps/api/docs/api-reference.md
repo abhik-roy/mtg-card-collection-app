@@ -14,6 +14,42 @@ All responses are JSON unless noted. Status codes follow standard REST conventio
 }
 ```
 
+Authenticated endpoints require `Authorization: Bearer <accessToken>`.
+
+## Auth
+
+### `POST /auth/register`
+Creates a user account and returns an access token.
+
+**Body**
+```json
+{
+  "email": "user@example.com",
+  "password": "Password123!"
+}
+```
+
+**Response**
+```json
+{
+  "accessToken": "jwt",
+  "user": { "id": "user-id", "email": "user@example.com" }
+}
+```
+
+### `POST /auth/login`
+Authenticates an existing user. Body/response matches register.
+
+### `GET /auth/me`
+Returns the authenticated profile.
+
+**Response**
+```json
+{
+  "user": { "id": "user-id", "email": "user@example.com" }
+}
+```
+
 ## Catalog
 
 ### `GET /catalog/search`
@@ -189,6 +225,52 @@ Returns `{ "id": "watch-id" }`.
 ### `DELETE /alerts/:id`
 Deletes a manual watch (auto watches will remain). Accepts cuid/uuid IDs.
 
+## Decks
+
+### `POST /decks`
+Creates a decklist for the authenticated user.
+
+**Body**
+```json
+{
+  "name": "Izzet Tempo",
+  "format": "Modern",
+  "description": "League testing list",
+  "cards": [
+    { "cardId": "stormchaser-talent-001", "quantity": 4, "board": "MAIN" },
+    { "cardId": "lose-focus-001", "quantity": 2, "board": "SIDE" }
+  ]
+}
+```
+
+**Response** – deck object with generated card entry IDs.
+
+### `GET /decks`
+Lists decks for the current user: `{ "items": [ deck, ... ] }`.
+
+### `GET /decks/:id`
+Returns the deck with its cards.
+
+### `PATCH /decks/:id`
+Updates deck metadata and optionally replaces the card list. Use `null` to clear optional fields.
+
+### `DELETE /decks/:id`
+Deletes a deck.
+
+### `GET /decks/:id/compare`
+Returns a diff between deck requirements and the user’s collection.
+
+**Response**
+```json
+{
+  "deck": { "id": "deck-id", "name": "Izzet Tempo" },
+  "main": [
+    { "cardId": "stormchaser-talent-001", "required": 3, "owned": 2, "missing": 1 }
+  ],
+  "side": []
+}
+```
+
 ## Notifications
 
 - **Email:** Enabled when `SMTP_*` env vars are provided. Uses Nodemailer.
@@ -197,4 +279,3 @@ Deletes a manual watch (auto watches will remain). Accepts cuid/uuid IDs.
 ## Health / Admin
 
 No dedicated health endpoint yet. Run scheduled price checks manually via `npx ts-node scripts/run-price-monitor.ts`.
-

@@ -6,6 +6,7 @@ import {
 } from '../../domain/repositories/collection.repository';
 
 export type ListCollectionQueryInput = {
+  userId: string;
   q?: string;
   set?: string;
   page?: number;
@@ -24,6 +25,7 @@ export class ListCollectionQuery {
     const pageSize = input.pageSize && input.pageSize > 0 ? input.pageSize : 24;
 
     return this.collectionRepository.list({
+      userId: input.userId,
       q: input.q,
       setCode: input.set,
       page,

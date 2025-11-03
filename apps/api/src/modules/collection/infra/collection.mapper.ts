@@ -5,6 +5,7 @@ import { Finish } from '../domain/value-objects/finish.vo';
 
 type PrismaCollectionEntry = {
   id: string;
+  userId: string | null;
   cardId: string;
   quantity: number;
   finish: string;
@@ -38,6 +39,7 @@ export class CollectionMapper {
       finish: entry.finish.value,
       condition: entry.condition.value,
       language: entry.language,
+      userId: entry.userId,
       acquiredPrice: entry.acquiredPrice ?? null,
       acquiredDate: entry.acquiredDate ?? null,
       location: entry.location ?? null,
@@ -48,8 +50,12 @@ export class CollectionMapper {
   }
 
   static toDomain(record: PrismaCollectionEntry): CollectionEntry {
+    if (!record.userId) {
+      throw new Error(`Collection entry ${record.id} is missing user context`);
+    }
     return CollectionEntry.create({
       id: UniqueEntityId.create(record.id),
+      userId: record.userId,
       cardId: record.cardId,
       quantity: record.quantity,
       finish: Finish.fromPrisma(record.finish),

@@ -14,6 +14,7 @@ import {
 } from '../importers/collection.importer';
 
 export type ImportCollectionCommandInput = {
+  userId: string;
   payload: string;
   format?: SupportedImportFormat;
 };
@@ -47,7 +48,7 @@ export class ImportCollectionCommand {
 
     for (const item of parsed) {
       try {
-        await this.importItem(item);
+        await this.importItem(input.userId, item);
         imported += 1;
       } catch (error) {
         const message =
@@ -63,13 +64,14 @@ export class ImportCollectionCommand {
     };
   }
 
-  private async importItem(item: ParsedImportItem): Promise<void> {
+  private async importItem(userId: string, item: ParsedImportItem): Promise<void> {
     const card = await this.scryfallClient.findByName(item.name, item.setCode);
 
     const finishValue = (item.finish ?? 'NONFOIL').toUpperCase();
     const conditionValue = (item.condition ?? 'NM').toUpperCase();
 
     const entry = CollectionEntry.create({
+      userId,
       cardId: card.id,
       quantity: item.quantity,
       finish: Finish.create(finishValue),

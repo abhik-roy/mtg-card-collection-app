@@ -5,6 +5,8 @@ import { CatalogModule } from './modules/catalog/catalog.module';
 import { CollectionModule } from './modules/collection/collection.module';
 import { EnvValidation } from './config/env.validation';
 import { AlertsModule } from './modules/alerts/alerts.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { DecksModule } from './modules/decks/decks.module';
 
 @Module({
   imports: [
@@ -13,8 +15,10 @@ import { AlertsModule } from './modules/alerts/alerts.module';
       validate: EnvValidation,
     }),
     ScheduleModule.forRoot(),
+    AuthModule,
     CatalogModule,
     CollectionModule,
+    DecksModule,
     AlertsModule,
   ],
 })

@@ -9,6 +9,7 @@ import { Condition } from '../../domain/value-objects/condition.vo';
 import { Finish } from '../../domain/value-objects/finish.vo';
 
 export type AddCardCommandInput = {
+  userId: string;
   cardId: string;
   quantity: number;
   finish: string;
@@ -34,6 +35,7 @@ export class AddCardCommand {
   async execute(input: AddCardCommandInput): Promise<AddCardCommandOutput> {
     const entry = CollectionEntry.create({
       id: UniqueEntityId.create(),
+      userId: input.userId,
       cardId: input.cardId,
       quantity: input.quantity,
       finish: Finish.create(input.finish),

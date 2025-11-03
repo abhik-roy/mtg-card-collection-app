@@ -8,7 +8,11 @@ import {
   Post,
   Query,
   StreamableFile,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../../auth/types/authenticated-user.type';
 import { AddCardCommand } from '../app/commands/add-card.command';
 import { RemoveEntryCommand } from '../app/commands/remove-entry.command';
 import { UpdateEntryCommand } from '../app/commands/update-entry.command';
@@ -24,6 +28,7 @@ import { ListCollectionQueryDto } from './dto/list-query.dto';
 import { ExportCollectionQueryDto } from './dto/export.dto';
 import { ImportCollectionDto } from './dto/import.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('collection')
 export class CollectionController {
   constructor(
@@ -36,8 +41,9 @@ export class CollectionController {
   ) {}
 
   @Post()
-  async add(@Body() payload: AddCollectionEntryDto) {
+  async add(@CurrentUser() user: AuthenticatedUser, @Body() payload: AddCollectionEntryDto) {
     const result = await this.addCardCommand.execute({
+      userId: user.id,
       cardId: payload.cardId,
       quantity: payload.quantity,
       finish: payload.finish,
@@ -56,11 +62,13 @@ export class CollectionController {
 
   @Patch(':id')
   async update(
+    @CurrentUser() user: AuthenticatedUser,
     @Param() params: CollectionIdParamDto,
     @Body() payload: UpdateCollectionEntryDto,
   ) {
     await this.updateEntryCommand.execute({
       id: params.id,
+      userId: user.id,
       quantity: payload.quantity,
       finish: payload.finish,
       condition: payload.condition,
@@ -80,14 +88,15 @@ export class CollectionController {
   }
 
   @Delete(':id')
-  async remove(@Param() params: CollectionIdParamDto) {
-    await this.removeEntryCommand.execute({ id: params.id });
+  async remove(@CurrentUser() user: AuthenticatedUser, @Param() params: CollectionIdParamDto) {
+    await this.removeEntryCommand.execute({ id: params.id, userId: user.id });
     return { ok: true };
   }
 
   @Get()
-  async list(@Query() query: ListCollectionQueryDto) {
+  async list(@CurrentUser() user: AuthenticatedUser, @Query() query: ListCollectionQueryDto) {
     const result = await this.listCollectionQuery.execute({
+      userId: user.id,
       q: query.q,
       set: query.set,
       page: query.page,
@@ -103,8 +112,9 @@ export class CollectionController {
   }
 
   @Get('export')
-  async export(@Query() query: ExportCollectionQueryDto) {
+  async export(@CurrentUser() user: AuthenticatedUser, @Query() query: ExportCollectionQueryDto) {
     const result = await this.exportCollectionQuery.execute({
+      userId: user.id,
       format: query.format,
       includePrices: query.includePrices,
       filters: {
@@ -120,8 +130,9 @@ export class CollectionController {
   }
 
   @Post('import')
-  async import(@Body() payload: ImportCollectionDto) {
+  async import(@CurrentUser() user: AuthenticatedUser, @Body() payload: ImportCollectionDto) {
     const result = await this.importCollectionCommand.execute({
+      userId: user.id,
       payload: payload.payload,
       format: payload.format,
     });

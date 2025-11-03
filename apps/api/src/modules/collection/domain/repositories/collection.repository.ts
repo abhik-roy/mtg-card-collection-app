@@ -1,6 +1,7 @@
 import { CollectionEntry } from '../entities/collection-entry';
 
 export type CollectionListQuery = {
+  userId: string;
   q?: string;
   setCode?: string;
   page: number;
@@ -33,8 +34,8 @@ export type CollectionListResult = {
 export interface CollectionRepository {
   create(entry: CollectionEntry): Promise<void>;
   save(entry: CollectionEntry): Promise<void>;
-  delete(id: string): Promise<void>;
-  findById(id: string): Promise<CollectionEntry | null>;
+  delete(id: string, userId: string): Promise<void>;
+  findById(id: string, userId: string): Promise<CollectionEntry | null>;
   list(query: CollectionListQuery): Promise<CollectionListResult>;
   findAll(query: Omit<CollectionListQuery, 'page' | 'pageSize'>): Promise<CollectionListItem[]>;
 }

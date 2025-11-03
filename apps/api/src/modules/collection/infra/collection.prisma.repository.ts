@@ -46,15 +46,15 @@ export class CollectionPrismaRepository implements CollectionRepository {
     });
   }
 
-  async delete(id: string): Promise<void> {
-    await this.prisma.collectionEntry.delete({
-      where: { id },
+  async delete(id: string, userId: string): Promise<void> {
+    await this.prisma.collectionEntry.deleteMany({
+      where: { id, userId },
     });
   }
 
-  async findById(id: string): Promise<CollectionEntry | null> {
-    const record = await this.prisma.collectionEntry.findUnique({
-      where: { id },
+  async findById(id: string, userId: string): Promise<CollectionEntry | null> {
+    const record = await this.prisma.collectionEntry.findFirst({
+      where: { id, userId },
     });
 
     if (!record) {
@@ -65,7 +65,7 @@ export class CollectionPrismaRepository implements CollectionRepository {
   }
 
   async list(query: CollectionListQuery): Promise<CollectionListResult> {
-    const where = this.buildWhere({ q: query.q, setCode: query.setCode });
+    const where = this.buildWhere({ q: query.q, setCode: query.setCode, userId: query.userId });
 
     const [items, total] = await Promise.all([
       this.prisma.collectionEntry.findMany({
@@ -97,7 +97,7 @@ export class CollectionPrismaRepository implements CollectionRepository {
   }
 
   async findAll(query: Omit<CollectionListQuery, 'page' | 'pageSize'>): Promise<CollectionListItem[]> {
-    const where = this.buildWhere({ q: query.q, setCode: query.setCode });
+    const where = this.buildWhere({ q: query.q, setCode: query.setCode, userId: query.userId });
 
     const items = await this.prisma.collectionEntry.findMany({
       where,
@@ -118,7 +118,7 @@ export class CollectionPrismaRepository implements CollectionRepository {
     return items.map((item) => this.toListItem(item, fetchedCache.get(item.cardId)));
   }
 
-  private buildWhere(filters: { q?: string; setCode?: string }): Prisma.CollectionEntryWhereInput {
+  private buildWhere(filters: { userId: string; q?: string; setCode?: string }): Prisma.CollectionEntryWhereInput {
     const catalogWhere: Prisma.CatalogCacheWhereInput = {};
 
     if (filters.q) {
@@ -133,7 +133,9 @@ export class CollectionPrismaRepository implements CollectionRepository {
       };
     }
 
-    const where: Prisma.CollectionEntryWhereInput = {};
+    const where: Prisma.CollectionEntryWhereInput = {
+      userId: filters.userId,
+    };
     if (Object.keys(catalogWhere).length > 0) {
       where.catalogCache = { is: catalogWhere };
     }
