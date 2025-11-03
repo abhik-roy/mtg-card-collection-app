@@ -25,8 +25,16 @@ export const updateCollectionEntrySchema = z
     message: 'At least one field must be provided',
   });
 
+const cuidRegex = /^c[a-z0-9]{24}$/i;
+const uuidRegex =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export const collectionIdParamSchema = z.object({
-  id: z.string().cuid({ message: 'id must be a valid cuid' }),
+  id: z
+    .string()
+    .refine((value) => cuidRegex.test(value) || uuidRegex.test(value), {
+      message: 'id must be a valid cuid or uuid',
+    }),
 });
 
 export class UpdateCollectionEntryDto extends createZodDto(updateCollectionEntrySchema) {}
