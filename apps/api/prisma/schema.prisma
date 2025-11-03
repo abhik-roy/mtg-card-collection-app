@@ -1,0 +1,84 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Finish {
+  NONFOIL
+  FOIL
+  ETCHED
+}
+
+enum Condition {
+  NM
+  LP
+  MP
+  HP
+  DMG
+}
+
+enum PriceDirection {
+  UP
+  DOWN
+}
+
+enum PriceType {
+  USD
+  USD_FOIL
+}
+
+model CollectionEntry {
+  id            String    @id @default(cuid())
+  cardId        String
+  quantity      Int       @default(1)
+  finish        Finish    @default(NONFOIL)
+  condition     Condition @default(NM)
+  language      String    @default("en")
+  acquiredPrice Float?
+  acquiredDate  DateTime?
+  location      String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  catalogCache  CatalogCache? @relation(fields: [cardId], references: [cardId])
+}
+
+model CatalogCache {
+  cardId          String   @id
+  name            String
+  setCode         String
+  collectorNumber String
+  lang            String
+  rarity          String?
+  imageSmall      String?
+  imageNormal     String?
+  usd             Float?
+  usdFoil         Float?
+  cachedAt        DateTime @default(now())
+
+  collectionEntries CollectionEntry[]
+
+  @@index([name])
+  @@index([setCode])
+}
+
+model PriceWatch {
+  id               String          @id @default(cuid())
+  cardId           String
+  direction        PriceDirection  @default(UP)
+  priceType        PriceType       @default(USD)
+  thresholdPercent Float
+  contact          String
+  lastPrice        Float?
+  lastNotifiedAt   DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([cardId])
+  @@index([contact])
+}
