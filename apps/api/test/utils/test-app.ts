@@ -1,7 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'crypto';
-import { execSync } from 'child_process';
+import * as path from 'path';
+import { execFileSync } from 'child_process';
 import { Client } from 'pg';
 import { ScryfallClient } from '../../src/shared/infra/http/scryfall.client';
 import { ZodValidationPipe } from 'nestjs-zod';
@@ -50,7 +51,25 @@ export async function createTestApp(): Promise<TestApp> {
   process.env.RATE_LIMIT_TTL = previousRateLimitTtl ?? '60';
   process.env.RATE_LIMIT_MAX = previousRateLimitMax ?? '120';
 
-  execSync('npx prisma migrate deploy', { stdio: 'inherit', env: { ...process.env } });
+  const projectRoot = path.resolve(__dirname, '../../');
+  const prismaBinary =
+    process.platform === 'win32'
+      ? path.resolve(projectRoot, 'node_modules/.bin/prisma.cmd')
+      : path.resolve(projectRoot, 'node_modules/.bin/prisma');
+
+  try {
+    execFileSync(prismaBinary, ['migrate', 'deploy', '--schema', 'prisma/schema.prisma'], {
+      cwd: projectRoot,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        DATABASE_URL: testDbUrl.toString(),
+      },
+    });
+  } catch (error) {
+    console.error('Failed to run prisma migrate', error);
+    throw error;
+  }
 
   const { fakeScryfall } = createFakeScryfall();
   const { AppModule } = await import('../../src/app.module');

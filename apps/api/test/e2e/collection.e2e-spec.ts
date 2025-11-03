@@ -1,3 +1,5 @@
+jest.setTimeout(30000);
+
 import * as supertest from 'supertest';
 import { PrismaService } from '../../src/shared/infra/prisma/prisma.service';
 import { createTestApp } from '../utils/test-app';
