@@ -33,9 +33,15 @@ export async function createTestApp(
   const previousJwtSecret = process.env.JWT_SECRET;
   const previousJwtExpires = process.env.JWT_EXPIRES_IN;
   const previousSaltRounds = process.env.BCRYPT_SALT_ROUNDS;
+  const previousAllowedOrigins = process.env.ALLOWED_ORIGINS;
+  const previousRateLimitTtl = process.env.RATE_LIMIT_TTL;
+  const previousRateLimitMax = process.env.RATE_LIMIT_MAX;
   process.env.JWT_SECRET = previousJwtSecret ?? 'test-secret';
   process.env.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? '1h';
   process.env.BCRYPT_SALT_ROUNDS = '4';
+  process.env.ALLOWED_ORIGINS = previousAllowedOrigins ?? 'http://localhost:5173';
+  process.env.RATE_LIMIT_TTL = previousRateLimitTtl ?? '60';
+  process.env.RATE_LIMIT_MAX = previousRateLimitMax ?? '120';
 
   const { fakeScryfall } = createFakeScryfall();
   const { AppModule } = await import('../../src/app.module');
@@ -78,6 +84,21 @@ export async function createTestApp(
       process.env.BCRYPT_SALT_ROUNDS = previousSaltRounds;
     } else {
       delete process.env.BCRYPT_SALT_ROUNDS;
+    }
+    if (previousAllowedOrigins !== undefined) {
+      process.env.ALLOWED_ORIGINS = previousAllowedOrigins;
+    } else {
+      delete process.env.ALLOWED_ORIGINS;
+    }
+    if (previousRateLimitTtl !== undefined) {
+      process.env.RATE_LIMIT_TTL = previousRateLimitTtl;
+    } else {
+      delete process.env.RATE_LIMIT_TTL;
+    }
+    if (previousRateLimitMax !== undefined) {
+      process.env.RATE_LIMIT_MAX = previousRateLimitMax;
+    } else {
+      delete process.env.RATE_LIMIT_MAX;
     }
     try {
       if (existsSync(dbPath)) unlinkSync(dbPath);

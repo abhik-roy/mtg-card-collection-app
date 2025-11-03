@@ -3,15 +3,15 @@ import { PrismaService } from '../../src/shared/infra/prisma/prisma.service';
 import { createTestApp } from '../utils/test-app';
 
 describe('Collection API (e2e)', () => {
-  let app: Awaited<ReturnType<typeof createTestApp>>;
+  let app: Awaited<ReturnType<typeof createTestApp>> | undefined;
   let prisma: PrismaService;
   let accessToken: string;
 
   beforeAll(async () => {
     app = await createTestApp();
-    prisma = app.app.get(PrismaService);
+    prisma = app!.app.get(PrismaService);
 
-    const httpServer = app.app.getHttpServer();
+    const httpServer = app!.app.getHttpServer();
     const authResponse = await supertest(httpServer)
       .post('/api/auth/register')
       .send({
@@ -24,11 +24,13 @@ describe('Collection API (e2e)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('searches catalog via Scryfall mock', async () => {
-    const response = await supertest(app.app.getHttpServer())
+    const response = await supertest(app!.app.getHttpServer())
       .get('/api/catalog/search')
       .set('Authorization', `Bearer ${accessToken}`)
       .query({ q: 'storm' })
@@ -46,7 +48,7 @@ describe('Collection API (e2e)', () => {
   });
 
   it('fetches catalog entries by id and handles 404s', async () => {
-    const httpServer = app.app.getHttpServer();
+    const httpServer = app!.app.getHttpServer();
 
     const success = await supertest(httpServer)
       .get('/api/catalog/stormchaser-talent-001')
@@ -72,7 +74,7 @@ describe('Collection API (e2e)', () => {
   });
 
   it('creates, lists, exports, and imports collection entries', async () => {
-    const httpServer = app.app.getHttpServer();
+    const httpServer = app!.app.getHttpServer();
 
     // Add a card to the collection
     const createResponse = await supertest(httpServer)
@@ -173,7 +175,7 @@ describe('Collection API (e2e)', () => {
   });
 
   it('rejects invalid collection payloads with problem details', async () => {
-    const httpServer = app.app.getHttpServer();
+    const httpServer = app!.app.getHttpServer();
 
     const response = await supertest(httpServer)
       .post('/api/collection')
@@ -201,7 +203,7 @@ describe('Collection API (e2e)', () => {
   });
 
   it('reports failures during import when cards cannot be resolved', async () => {
-    const httpServer = app.app.getHttpServer();
+    const httpServer = app!.app.getHttpServer();
 
     const response = await supertest(httpServer)
       .post('/api/collection/import')

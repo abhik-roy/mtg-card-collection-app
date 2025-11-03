@@ -14,6 +14,8 @@
   - Prisma service (`shared/infra/prisma`)
   - Scryfall client with in-memory LRU cache (`shared/infra/http`)
   - Standardized error filter & DTO validation via Zod
+  - Global Helmet middleware + configurable CORS allowlist
+  - Throttler guard enforcing rate limits (defaults: 60 req/min)
 - **Presentation Layer:** REST controllers under `modules/*/rest`
 
 ## Key Flows

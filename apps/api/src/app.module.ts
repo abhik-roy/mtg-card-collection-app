@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard, ThrottlerModuleOptions } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { CollectionModule } from './modules/collection/collection.module';
 import { EnvValidation } from './config/env.validation';
@@ -15,11 +17,27 @@ import { DecksModule } from './modules/decks/decks.module';
       validate: EnvValidation,
     }),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService): ThrottlerModuleOptions => [
+        {
+          ttl: config.get<number>('RATE_LIMIT_TTL') ?? 60,
+          limit: config.get<number>('RATE_LIMIT_MAX') ?? 120,
+        },
+      ],
+    }),
     AuthModule,
     CatalogModule,
     CollectionModule,
     DecksModule,
     AlertsModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

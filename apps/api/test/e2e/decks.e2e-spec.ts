@@ -12,14 +12,14 @@ const TEST_DECK = {
 };
 
 describe('Decks API (e2e)', () => {
-  let app: Awaited<ReturnType<typeof createTestApp>>;
+  let app: Awaited<ReturnType<typeof createTestApp>> | undefined;
   let accessToken: string;
   let deckId: string;
 
   beforeAll(async () => {
     app = await createTestApp();
 
-    const authResponse = await supertest(app.app.getHttpServer())
+    const authResponse = await supertest(app!.app.getHttpServer())
       .post('/api/auth/register')
       .send({
         email: 'decks@example.com',
@@ -31,11 +31,13 @@ describe('Decks API (e2e)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('creates a deck with cards', async () => {
-    const response = await supertest(app.app.getHttpServer())
+    const response = await supertest(app!.app.getHttpServer())
       .post('/api/decks')
       .set('Authorization', `Bearer ${accessToken}`)
       .send(TEST_DECK)
@@ -54,7 +56,7 @@ describe('Decks API (e2e)', () => {
   });
 
   it('lists decks for the user', async () => {
-    const response = await supertest(app.app.getHttpServer())
+    const response = await supertest(app!.app.getHttpServer())
       .get('/api/decks')
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
@@ -67,7 +69,7 @@ describe('Decks API (e2e)', () => {
   });
 
   it('retrieves deck details', async () => {
-    const response = await supertest(app.app.getHttpServer())
+    const response = await supertest(app!.app.getHttpServer())
       .get(`/api/decks/${deckId}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
@@ -76,7 +78,7 @@ describe('Decks API (e2e)', () => {
   });
 
   it('updates deck metadata and cards', async () => {
-    const response = await supertest(app.app.getHttpServer())
+    const response = await supertest(app!.app.getHttpServer())
       .patch(`/api/decks/${deckId}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
@@ -97,7 +99,7 @@ describe('Decks API (e2e)', () => {
 
   it('compares deck against collection entries', async () => {
     // Add collection entries for comparison
-    await supertest(app.app.getHttpServer())
+    await supertest(app!.app.getHttpServer())
       .post('/api/collection')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
@@ -108,7 +110,7 @@ describe('Decks API (e2e)', () => {
       })
       .expect(201);
 
-    const compare = await supertest(app.app.getHttpServer())
+    const compare = await supertest(app!.app.getHttpServer())
       .get(`/api/decks/${deckId}/compare`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
@@ -118,12 +120,12 @@ describe('Decks API (e2e)', () => {
   });
 
   it('deletes the deck', async () => {
-    await supertest(app.app.getHttpServer())
+    await supertest(app!.app.getHttpServer())
       .delete(`/api/decks/${deckId}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
 
-    await supertest(app.app.getHttpServer())
+    await supertest(app!.app.getHttpServer())
       .get(`/api/decks/${deckId}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(404);

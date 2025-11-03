@@ -2,18 +2,20 @@ import * as supertest from 'supertest';
 import { createTestApp } from '../utils/test-app';
 
 describe('Auth API (e2e)', () => {
-  let app: Awaited<ReturnType<typeof createTestApp>>;
+  let app: Awaited<ReturnType<typeof createTestApp>> | undefined;
 
   beforeAll(async () => {
     app = await createTestApp();
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('registers a new user and returns a token', async () => {
-    const response = await supertest(app.app.getHttpServer())
+    const response = await supertest(app!.app.getHttpServer())
       .post('/api/auth/register')
       .send({
         email: 'auth-spec@example.com',
@@ -31,7 +33,7 @@ describe('Auth API (e2e)', () => {
   });
 
   it('logs in an existing user', async () => {
-    await supertest(app.app.getHttpServer())
+    await supertest(app!.app.getHttpServer())
       .post('/api/auth/register')
       .send({
         email: 'auth-login@example.com',
@@ -39,7 +41,7 @@ describe('Auth API (e2e)', () => {
       })
       .expect(201);
 
-    const login = await supertest(app.app.getHttpServer())
+    const login = await supertest(app!.app.getHttpServer())
       .post('/api/auth/login')
       .send({
         email: 'auth-login@example.com',
@@ -49,7 +51,7 @@ describe('Auth API (e2e)', () => {
 
     expect(login.body.accessToken).toBeTruthy();
 
-    const me = await supertest(app.app.getHttpServer())
+    const me = await supertest(app!.app.getHttpServer())
       .get('/api/auth/me')
       .set('Authorization', `Bearer ${login.body.accessToken}`)
       .expect(200);
@@ -58,7 +60,7 @@ describe('Auth API (e2e)', () => {
   });
 
   it('prevents duplicate registrations', async () => {
-    await supertest(app.app.getHttpServer())
+    await supertest(app!.app.getHttpServer())
       .post('/api/auth/register')
       .send({
         email: 'auth-duplicate@example.com',
@@ -66,7 +68,7 @@ describe('Auth API (e2e)', () => {
       })
       .expect(201);
 
-    await supertest(app.app.getHttpServer())
+    await supertest(app!.app.getHttpServer())
       .post('/api/auth/register')
       .send({
         email: 'auth-duplicate@example.com',

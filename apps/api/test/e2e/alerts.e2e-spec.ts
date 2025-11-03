@@ -3,16 +3,16 @@ import { PrismaService } from '../../src/shared/infra/prisma/prisma.service';
 import { createTestApp } from '../utils/test-app';
 
 describe('Alerts API (e2e)', () => {
-  let app: Awaited<ReturnType<typeof createTestApp>>;
+  let app: Awaited<ReturnType<typeof createTestApp>> | undefined;
   let prisma: PrismaService;
   let accessToken: string;
   let userId: string;
 
   beforeAll(async () => {
     app = await createTestApp();
-    prisma = app.app.get(PrismaService);
+    prisma = app!.app.get(PrismaService);
 
-    const httpServer = app.app.getHttpServer();
+    const httpServer = app!.app.getHttpServer();
     const authResponse = await supertest(httpServer)
       .post('/api/auth/register')
       .send({
@@ -54,11 +54,13 @@ describe('Alerts API (e2e)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('lists baseline watches', async () => {
-    const response = await supertest(app.app.getHttpServer())
+    const response = await supertest(app!.app.getHttpServer())
       .get('/api/alerts')
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
@@ -70,7 +72,7 @@ describe('Alerts API (e2e)', () => {
   });
 
   it('creates and deletes a manual watch', async () => {
-    const httpServer = app.app.getHttpServer();
+    const httpServer = app!.app.getHttpServer();
 
     const createResponse = await supertest(httpServer)
       .post('/api/alerts')
@@ -109,7 +111,7 @@ describe('Alerts API (e2e)', () => {
   });
 
   it('validates payloads and returns problem details for bad requests', async () => {
-    const httpServer = app.app.getHttpServer();
+    const httpServer = app!.app.getHttpServer();
 
     const invalid = await supertest(httpServer)
       .post('/api/alerts')

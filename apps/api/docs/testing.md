@@ -15,6 +15,15 @@ two layers:
 npm test --prefix apps/api
 ```
 
+To run the API locally in a production-like container:
+
+```bash
+docker compose up --build
+```
+
+The compose file mounts the SQLite dev database for convenience; swap the `DATABASE_URL`
+for a managed Postgres instance before deploying to production.
+
 The Jest configuration automatically transpiles TypeScript via `ts-jest`. Each
 e2e test spins up a temporary SQLite database cloned from `dev.sqlite`, so the
 default `DATABASE_URL` only needs to point at that file. No additional services

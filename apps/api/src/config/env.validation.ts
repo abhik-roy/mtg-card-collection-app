@@ -24,6 +24,9 @@ const envSchema = z
       .string()
       .url('DISCORD_WEBHOOK_URL must be a valid URL')
       .optional(),
+    ALLOWED_ORIGINS: z.string().optional(),
+    RATE_LIMIT_TTL: z.coerce.number().int().positive().default(60),
+    RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
     JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
     JWT_EXPIRES_IN: z.string().default('1h'),
     BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(4).max(15).default(10),
