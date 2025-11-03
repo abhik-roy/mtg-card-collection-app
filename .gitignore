@@ -2,8 +2,6 @@ node_modules/
 .npm-cache/
 apps/api/dist/
 apps/api/.env
-apps/api/dev.sqlite
-apps/api/prisma/migrations/
 apps/web/dist/
 apps/web/.env
 .DS_Store

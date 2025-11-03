@@ -6,8 +6,9 @@ two layers:
 
 - **Unit tests** (`apps/api/test/unit`) exercise pure domain code and framework
   integrations in isolation using mocks.
-- **End-to-end tests** (`apps/api/test/e2e`) boot a full Nest application with a
-  sandboxed SQLite database and a fake Scryfall client to verify HTTP contracts.
+- **End-to-end tests** (`apps/api/test/e2e`) boot a full Nest application with an
+  ephemeral PostgreSQL database (created per suite) and a fake Scryfall client to
+  verify HTTP contracts.
 
 ## Running the suite
 
@@ -21,13 +22,14 @@ To run the API locally in a production-like container:
 docker compose up --build
 ```
 
-The compose file mounts the SQLite dev database for convenience; swap the `DATABASE_URL`
-for a managed Postgres instance before deploying to production.
+Ensure a PostgreSQL instance is available (the provided compose stack exposes one on
+`localhost:5432`). Update `DATABASE_URL` as needed for production deployments.
 
-The Jest configuration automatically transpiles TypeScript via `ts-jest`. Each
-e2e test spins up a temporary SQLite database cloned from `dev.sqlite`, so the
-default `DATABASE_URL` only needs to point at that file. No additional services
-are required.
+The Jest configuration automatically transpiles TypeScript via `ts-jest`. The
+e2e harness provisions a dedicated PostgreSQL database per suite (using the
+connection string from `DATABASE_URL`) and tears it down after tests finish.
+Run `docker compose up db -d` before running the suite locally, or point to an
+existing Postgres instance.
 
 ## Coverage highlights
 

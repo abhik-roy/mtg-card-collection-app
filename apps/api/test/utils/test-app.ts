@@ -1,9 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { existsSync, mkdtempSync, copyFileSync, unlinkSync, rmSync } from 'fs';
 import { randomUUID } from 'crypto';
-import { tmpdir } from 'os';
-import * as path from 'path';
+import { execSync } from 'child_process';
+import { Client } from 'pg';
 import { ScryfallClient } from '../../src/shared/infra/http/scryfall.client';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { ProblemDetailsFilter } from '../../src/shared/presentation/problem.filter';
@@ -18,18 +17,26 @@ export type FakeScryfall = {
 export type TestApp = {
   app: INestApplication;
   fakeScryfall: FakeScryfall;
-  dbPath: string;
+  databaseUrl: string;
   close: () => Promise<void>;
 };
 
-export async function createTestApp(
-  seedDbPath = path.resolve(__dirname, '../../prisma/dev.sqlite'),
-): Promise<TestApp> {
+export async function createTestApp(): Promise<TestApp> {
   const previousDbUrl = process.env.DATABASE_URL;
-  const tempDir = mkdtempSync(path.join(tmpdir(), 'mtg-tests-'));
-  const dbPath = path.join(tempDir, `test-db-${randomUUID()}.sqlite`);
-  copyFileSync(seedDbPath, dbPath);
-  process.env.DATABASE_URL = `file:${dbPath}`;
+  const baseUrl = new URL(previousDbUrl ?? 'postgresql://mtg:mtg@localhost:5432/mtg');
+  const adminUrl = new URL(baseUrl.toString());
+  adminUrl.pathname = '/postgres';
+
+  const testDbName = `mtg_test_${randomUUID().replace(/-/g, '')}`;
+  const testDbUrl = new URL(baseUrl.toString());
+  testDbUrl.pathname = `/${testDbName}`;
+
+  const adminClient = new Client({ connectionString: adminUrl.toString() });
+  await adminClient.connect();
+  await adminClient.query(`CREATE DATABASE "${testDbName}"`);
+  await adminClient.end();
+
+  process.env.DATABASE_URL = testDbUrl.toString();
   const previousJwtSecret = process.env.JWT_SECRET;
   const previousJwtExpires = process.env.JWT_EXPIRES_IN;
   const previousSaltRounds = process.env.BCRYPT_SALT_ROUNDS;
@@ -42,6 +49,8 @@ export async function createTestApp(
   process.env.ALLOWED_ORIGINS = previousAllowedOrigins ?? 'http://localhost:5173';
   process.env.RATE_LIMIT_TTL = previousRateLimitTtl ?? '60';
   process.env.RATE_LIMIT_MAX = previousRateLimitMax ?? '120';
+
+  execSync('npx prisma migrate deploy', { stdio: 'inherit', env: { ...process.env } });
 
   const { fakeScryfall } = createFakeScryfall();
   const { AppModule } = await import('../../src/app.module');
@@ -100,18 +109,17 @@ export async function createTestApp(
     } else {
       delete process.env.RATE_LIMIT_MAX;
     }
-    try {
-      if (existsSync(dbPath)) unlinkSync(dbPath);
-      rmSync(tempDir, { recursive: true, force: true });
-    } catch (error) {
-      // ignore cleanup errors
-    }
+    const dropClient = new Client({ connectionString: adminUrl.toString() });
+    await dropClient.connect();
+    await dropClient.query('SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1', [testDbName]);
+    await dropClient.query(`DROP DATABASE "${testDbName}"`);
+    await dropClient.end();
   };
 
   return {
     app,
     fakeScryfall,
-    dbPath,
+    databaseUrl: testDbUrl.toString(),
     close,
   };
 }

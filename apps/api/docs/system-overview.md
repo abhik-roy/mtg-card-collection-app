@@ -3,7 +3,7 @@
 ## Architecture
 
 - **Framework:** NestJS (Node 20)
-- **Database:** SQLite via Prisma ORM
+- **Database:** PostgreSQL via Prisma ORM
 - **Domain Modules:**
   - `catalog` – read-only Scryfall integration
   - `collection` – user-owned inventory, import/export
@@ -37,7 +37,7 @@
 ## Testing Strategy
 
 - Unit tests for import parser, importer command, price monitor service.
-- Integration/e2e tests using Nest testing module (`test/e2e/*`) with a copied SQLite database and mocked Scryfall client.
+- Integration/e2e tests using Nest testing module (`test/e2e/*`) against an ephemeral PostgreSQL database and mocked Scryfall client.
 - Run via `npm test` (ts-jest) and `npm run build` for type-checks.
 
 ## Scripts
@@ -49,7 +49,7 @@
 See `.env.example`.
 
 Essential:
-- `DATABASE_URL` – SQLite path (copied per test).
+- `DATABASE_URL` – PostgreSQL connection URL (`postgresql://user:pass@host:5432/db`).
 - `SCRYFALL_CACHE_TTL_MS` – in-memory cache TTL.
 - `JWT_SECRET` – signing key for API tokens.
 - `JWT_EXPIRES_IN` – token lifetime (e.g. `1h`).

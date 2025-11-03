@@ -41,7 +41,7 @@ The old frontend (`apps/web`) has been removed pending a rewrite.
 ## External Integrations
 
 - **Scryfall API** via `undici` requests (search, name lookup, by-id).
-- **Prisma** with SQLite (file-based) storage.
+- **Prisma** with PostgreSQL storage.
 - **Notifications**
   - Discord webhook (preferred when `DISCORD_WEBHOOK_URL` is set).
   - Nodemailer SMTP (fallback when configured).
@@ -49,7 +49,7 @@ The old frontend (`apps/web`) has been removed pending a rewrite.
 
 ## Testing
 
-- `npm test` runs ts-jest suites (unit + e2e). E2E harness copies `dev.sqlite` per test and overrides `ScryfallClient` with a deterministic mock.
+- `npm test` runs ts-jest suites (unit + e2e). E2E harness provisions a dedicated PostgreSQL database per run and overrides `ScryfallClient` with a deterministic mock.
 - `npm run build` compiles TypeScript to ensure type safety.
 
 ## Common Commands
@@ -71,7 +71,7 @@ npx ts-node scripts/run-price-monitor.ts --prefix apps/api
 ## Key Environment Variables
 
 See `.env.example`. At minimum set:
-- `DATABASE_URL="file:./dev.sqlite"`
+- `DATABASE_URL="postgresql://mtg:mtg@localhost:5432/mtg"`
 - Optional `DISCORD_WEBHOOK_URL`, `SMTP_*` for notifications.
 
 ## Implementation Notes
@@ -88,4 +88,3 @@ See `.env.example`. At minimum set:
 - Expand price monitor scheduling (currently cron every hour).
 - Metrics/logging for notification delivery.
 - Additional test coverage for error conditions (invalid import lines, Scryfall failures, etc.).
-

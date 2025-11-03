@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -48,6 +48,8 @@ model CollectionEntry {
 
   catalogCache  CatalogCache? @relation(fields: [cardId], references: [cardId])
   user          User?         @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model CatalogCache {
