@@ -163,6 +163,7 @@
   justify-content: center;
   cursor: pointer;
   transition: background 150ms ease, border-color 150ms ease;
+}
 .oauth-button:hover {
   background: rgba(99, 102, 241, 0.18);
   border-color: rgba(129, 140, 248, 0.45);
@@ -187,6 +188,12 @@
   font-size: 0.9rem;
 }
 
+.status--inline {
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+  background: rgba(79, 70, 229, 0.2);
+}
+
 .session {
   margin: 0;
   margin-top: 0.75rem;
@@ -205,6 +212,73 @@
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: rgba(148, 163, 184, 0.85);
+}
+
+.panel--landing {
+  gap: 2rem;
+}
+
+.panel--loading {
+  align-self: center;
+  justify-self: center;
+  min-width: min(320px, 100%);
+  text-align: center;
+}
+
+.landing-grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 600px) {
+  .landing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .landing-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.landing-card {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 18px;
+  padding: 1.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  display: grid;
+  gap: 0.75rem;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.landing-card h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #f8fafc;
+}
+
+.landing-card p {
+  margin: 0;
+  color: rgba(203, 213, 225, 0.9);
+  line-height: 1.55;
+}
+
+.landing-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(129, 140, 248, 0.45);
+  box-shadow: 0 18px 36px rgba(2, 6, 23, 0.45);
+}
+
+.landing-link {
+  font-weight: 600;
+  color: #c7d2fe;
+  text-decoration: none;
+}
+
+.landing-link:hover {
+  color: #ede9fe;
+  text-decoration: underline;
 }
 
 .hero {
@@ -248,4 +322,36 @@
   line-height: 1.7;
   font-size: 1rem;
   color: rgba(226, 232, 240, 0.9);
+}
+
+.hero--landing {
+  align-items: center;
+}
+
+.hero__list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.75rem;
+  font-size: 1rem;
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.hero__list li {
+  line-height: 1.6;
+}
+
+.logout {
+  justify-self: flex-start;
+  font-size: 0.95rem;
+  padding: 0.65rem 1.2rem;
+  border-radius: 12px;
+  border: 1px solid rgba(203, 213, 225, 0.25);
+  background: rgba(15, 23, 42, 0.5);
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.logout:hover {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(129, 140, 248, 0.45);
 }

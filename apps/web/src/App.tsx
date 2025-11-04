@@ -128,119 +128,173 @@ function App() {
 
   return (
     <main className="page">
-      <section className="panel">
-        <header className="panel__header">
-          <span className="panel__badge">MTG Collection</span>
-          <h1 className="panel__title">Welcome back</h1>
-          <p className="panel__subtitle">
-            Sign in to manage your collection, build decks, and keep an eye on price alerts.
-          </p>
-        </header>
+      {loadingSession ? (
+        <section className="panel panel--loading">
+          <header className="panel__header">
+            <span className="panel__badge">MTG Collection</span>
+            <h1 className="panel__title">Checking your session…</h1>
+            <p className="panel__subtitle">Hold tight while we restore your workspace.</p>
+          </header>
+        </section>
+      ) : session ? (
+        <>
+          <section className="panel panel--landing">
+            <header className="panel__header">
+              <span className="panel__badge">MTG Collection</span>
+              <h1 className="panel__title">Welcome, {session.name ?? session.email}!</h1>
+              <p className="panel__subtitle">
+                Your collection, decks, and alerts are synced. Jump back in where you left off.
+              </p>
+            </header>
 
-        <form className="form" onSubmit={handleSubmit}>
-          <label className="form__label" htmlFor="email">
-            Email
-          </label>
-          <input
-            className="form__input"
-            id="email"
-            name="email"
-            type="email"
-            placeholder="you@example.com"
-            value={form.email}
-            onChange={handleChange('email')}
-            required
-          />
+            {message && <p className="status status--inline">{message}</p>}
 
-          <label className="form__label" htmlFor="password">
-            Password
-          </label>
-          <input
-            className="form__input"
-            id="password"
-            name="password"
-            type="password"
-            placeholder="Password123!"
-            value={form.password}
-            onChange={handleChange('password')}
-            required
-          />
+            <div className="landing-grid">
+              <article className="landing-card">
+                <h2>Collection</h2>
+                <p>Review, import, and export your cards with up-to-date pricing data.</p>
+                <a className="landing-link" href="/collection">
+                  View collection →
+                </a>
+              </article>
 
-          <button className="form__submit" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (mode === 'login' ? 'Signing in…' : 'Creating account…') : mode === 'login' ? 'Sign in' : 'Create account'}
-          </button>
+              <article className="landing-card">
+                <h2>Decks</h2>
+                <p>Compare decks against your binder and track missing pieces automatically.</p>
+                <a className="landing-link" href="/decks">
+                  Manage decks →
+                </a>
+              </article>
 
-          <p className="auth-toggle">
-            {mode === 'login' ? (
-              <>
-                Need an account?{' '}
-                <button
-                  type="button"
-                  className="auth-toggle__button"
-                  onClick={() => {
-                    setMode('register');
-                    setMessage(null);
-                  }}
-                >
-                  Create one
-                </button>
-              </>
-            ) : (
-              <>
-                Already registered?{' '}
-                <button
-                  type="button"
-                  className="auth-toggle__button"
-                  onClick={() => {
-                    setMode('login');
-                    setMessage(null);
-                  }}
-                >
-                  Sign in instead
-                </button>
-              </>
-            )}
-          </p>
-        </form>
-
-        <div className="divider">
-          <span className="divider__line" />
-          <span className="divider__label">or</span>
-          <span className="divider__line" />
-        </div>
-
-        <button className="oauth-button" type="button" onClick={handleGoogleLogin}>
-          <span aria-hidden>🔒</span> Continue with Google
-        </button>
-
-        <button className="oauth-button discord" type="button" onClick={handleDiscordLogin}>
-          <span aria-hidden>🎮</span> Continue with Discord
-        </button>
-
-        {message && <p className="status">{message}</p>}
-
-        {!loadingSession && session && (
-          <div className="session">
-            <p className="session__title">Signed in as</p>
-            <div>
-              <strong>{session.name ?? session.email}</strong>
-              <div>{session.email}</div>
+              <article className="landing-card">
+                <h2>Alerts</h2>
+                <p>Monitor price spikes and receive notifications before the market moves.</p>
+                <a className="landing-link" href="/alerts">
+                  Configure alerts →
+                </a>
+              </article>
             </div>
-            <button className="auth-toggle__button" type="button" onClick={handleLogout}>
+
+            <button className="auth-toggle__button logout" type="button" onClick={handleLogout}>
               Sign out
             </button>
-          </div>
-        )}
-      </section>
+          </section>
 
-      <aside className="hero">
-        <div className="hero__content">
-          <h2>Track every card.</h2>
-          <p>
-            Sync your decks with your collection, monitor price alerts, and build the perfect list for your next FNM.
-          </p>
-        </div>
-      </aside>
+          <aside className="hero hero--landing">
+            <div className="hero__content">
+              <h2>Everything you need to stay ahead.</h2>
+              <ul className="hero__list">
+                <li>Instant sync with your binder and decks</li>
+                <li>Price alerts with email and Discord notifications</li>
+                <li>Exportable CSV snapshots for trading and events</li>
+              </ul>
+            </div>
+          </aside>
+        </>
+      ) : (
+        <>
+          <section className="panel">
+            <header className="panel__header">
+              <span className="panel__badge">MTG Collection</span>
+              <h1 className="panel__title">Welcome back</h1>
+              <p className="panel__subtitle">
+                Sign in to manage your collection, build decks, and keep an eye on price alerts.
+              </p>
+            </header>
+
+            <form className="form" onSubmit={handleSubmit}>
+              <label className="form__label" htmlFor="email">
+                Email
+              </label>
+              <input
+                className="form__input"
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                value={form.email}
+                onChange={handleChange('email')}
+                required
+              />
+
+              <label className="form__label" htmlFor="password">
+                Password
+              </label>
+              <input
+                className="form__input"
+                id="password"
+                name="password"
+                type="password"
+                placeholder="Password123!"
+                value={form.password}
+                onChange={handleChange('password')}
+                required
+              />
+
+              <button className="form__submit" type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (mode === 'login' ? 'Signing in…' : 'Creating account…') : mode === 'login' ? 'Sign in' : 'Create account'}
+              </button>
+
+              <p className="auth-toggle">
+                {mode === 'login' ? (
+                  <>
+                    Need an account?{' '}
+                    <button
+                      type="button"
+                      className="auth-toggle__button"
+                      onClick={() => {
+                        setMode('register');
+                        setMessage(null);
+                      }}
+                    >
+                      Create one
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Already registered?{' '}
+                    <button
+                      type="button"
+                      className="auth-toggle__button"
+                      onClick={() => {
+                        setMode('login');
+                        setMessage(null);
+                      }}
+                    >
+                      Sign in instead
+                    </button>
+                  </>
+                )}
+              </p>
+            </form>
+
+            <div className="divider">
+              <span className="divider__line" />
+              <span className="divider__label">or</span>
+              <span className="divider__line" />
+            </div>
+
+            <button className="oauth-button" type="button" onClick={handleGoogleLogin}>
+              <span aria-hidden>🔒</span> Continue with Google
+            </button>
+
+            <button className="oauth-button discord" type="button" onClick={handleDiscordLogin}>
+              <span aria-hidden>🎮</span> Continue with Discord
+            </button>
+
+            {message && <p className="status">{message}</p>}
+          </section>
+
+          <aside className="hero">
+            <div className="hero__content">
+              <h2>Track every card.</h2>
+              <p>
+                Sync your decks with your collection, monitor price alerts, and build the perfect list for your next FNM.
+              </p>
+            </div>
+          </aside>
+        </>
+      )}
     </main>
   );
 }
