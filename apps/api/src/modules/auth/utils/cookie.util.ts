@@ -8,10 +8,12 @@ const secure =
   process.env.COOKIE_SECURE === 'true' ||
   process.env.COOKIE_SECURE === '1';
 
+const sameSite: 'lax' | 'none' = secure ? 'none' : 'lax';
+
 export function setTemporaryCookie(res: Response, name: string, value: string) {
   res.cookie(name, value, {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite,
     secure,
     maxAge: TEN_MINUTES,
   });
@@ -20,7 +22,7 @@ export function setTemporaryCookie(res: Response, name: string, value: string) {
 export function clearCookie(res: Response, name: string) {
   res.clearCookie(name, {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite,
     secure,
   });
 }
@@ -28,7 +30,7 @@ export function clearCookie(res: Response, name: string) {
 export function setSessionCookie(res: Response, token: string) {
   res.cookie('sid', token, {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite,
     secure,
     maxAge: ONE_WEEK,
   });
