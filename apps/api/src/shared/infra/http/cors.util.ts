@@ -82,11 +82,11 @@ export function createCorsOrigin(matchers: OriginMatcher[]): CorsOptions['origin
     }
 
     if (isOriginAllowed(origin, matchers)) {
-      // Pass the requested origin back so Express/Nest echoes it.
-      return callback(null, { origin });
+      Logger.debug(`CORS allowed origin "${origin}"`, 'CORS');
+      return callback(null, true);
     }
 
     Logger.warn(`Blocked CORS origin "${origin}". Allowed origins: ${allowedForLog}`, 'CORS');
-    return callback(new Error(`Origin not allowed: ${origin}`), false);
+    return callback(null, false);
   };
 }

@@ -9,6 +9,7 @@ import { EnvValidation } from './config/env.validation';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DecksModule } from './modules/decks/decks.module';
+import { DebugModule } from './modules/debug/debug.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { DecksModule } from './modules/decks/decks.module';
     CollectionModule,
     DecksModule,
     AlertsModule,
+    DebugModule,
   ],
   providers: [
     {
