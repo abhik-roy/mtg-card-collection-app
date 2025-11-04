@@ -83,6 +83,27 @@ describe('Collection API (e2e)', () => {
     });
   });
 
+  it('lists available prints for a catalog card', async () => {
+    const httpServer = app!.app.getHttpServer();
+
+    const response = await supertest(httpServer)
+      .get('/api/catalog/stormchaser-talent-001/prints')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
+      .expect(200);
+
+    expect(response.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'stormchaser-talent-001',
+          name: "Stormchaser's Talent",
+          collector_number: '75',
+        }),
+      ]),
+    );
+    expect(response.body.total).toBeGreaterThan(0);
+  });
+
   it('creates, lists, exports, and imports collection entries', async () => {
     const httpServer = app!.app.getHttpServer();
 

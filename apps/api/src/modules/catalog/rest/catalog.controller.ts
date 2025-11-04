@@ -1,6 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { SearchByNameQuery } from '../app/queries/search-by-name.query';
 import { GetByIdQuery } from '../app/queries/get-by-id.query';
+import { ListCardPrintsQuery } from '../app/queries/list-prints.query';
 import {
   CatalogIdParamDto,
   SearchCatalogDto,
@@ -11,6 +12,7 @@ export class CatalogController {
   constructor(
     private readonly searchByNameQuery: SearchByNameQuery,
     private readonly getByIdQuery: GetByIdQuery,
+    private readonly listCardPrintsQuery: ListCardPrintsQuery,
   ) {}
 
   @Get('search')
@@ -62,6 +64,34 @@ export class CatalogController {
         usd: card.usd,
         usd_foil: card.usdFoil,
       },
+    };
+  }
+
+  @Get(':id/prints')
+  async listPrints(@Param() params: CatalogIdParamDto) {
+    const result = await this.listCardPrintsQuery.execute({
+      cardId: params.id,
+    });
+
+    return {
+      items: result.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        set: item.setCode,
+        collector_number: item.collectorNumber,
+        lang: item.lang,
+        rarity: item.rarity,
+        image_uris: {
+          small: item.imageSmall,
+          normal: item.imageNormal,
+        },
+        prices: {
+          usd: item.usd,
+          usd_foil: item.usdFoil,
+        },
+      })),
+      total: result.total ?? result.items.length,
+      has_more: result.hasMore ?? false,
     };
   }
 }

@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 
 type Tab = 'collection' | 'portfolio' | 'marketplace';
@@ -50,6 +50,24 @@ type CatalogCard = {
   set: string;
   collectorNumber: string;
   imageSmall?: string;
+  imageNormal?: string;
+  usd?: number;
+  usdFoil?: number;
+};
+
+type CatalogApiItem = {
+  id: string;
+  name: string;
+  set: string;
+  collector_number: string;
+  image_uris?: {
+    small?: string;
+    normal?: string;
+  };
+  prices?: {
+    usd?: number | string;
+    usd_foil?: number | string;
+  };
 };
 
 type PortfolioSummary = {
@@ -121,8 +139,11 @@ const defaultAddForm = {
   quantity: 1,
   finish: 'NONFOIL',
   condition: 'NM',
+  language: 'en',
   acquiredPrice: '',
 };
+
+const BINDER_PAGE_SIZE = 9;
 
 function App() {
   const [form, setForm] = useState<LoginFormState>({ email: '', password: '' });
@@ -138,6 +159,9 @@ function App() {
   const [collectionLoading, setCollectionLoading] = useState(false);
   const [collectionError, setCollectionError] = useState<string | null>(null);
   const [collectionMenuOpen, setCollectionMenuOpen] = useState(false);
+  const [collectionView, setCollectionView] = useState<'table' | 'binder'>('table');
+  const [binderPage, setBinderPage] = useState(1);
+  const [binderFlipDirection, setBinderFlipDirection] = useState<'forward' | 'backward' | null>(null);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -148,6 +172,17 @@ function App() {
   const [addForm, setAddForm] = useState(defaultAddForm);
   const [importPayload, setImportPayload] = useState('');
   const [importing, setImporting] = useState(false);
+  const [showVersionModal, setShowVersionModal] = useState(false);
+  const [versionLoading, setVersionLoading] = useState(false);
+  const [versionResults, setVersionResults] = useState<CatalogCard[]>([]);
+  const [versionBaseCard, setVersionBaseCard] = useState<CatalogCard | null>(null);
+  const [versionError, setVersionError] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<CollectionItem | null>(null);
+  const [editForm, setEditForm] = useState(defaultAddForm);
+
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
 
   const [portfolioSummary, setPortfolioSummary] = useState<PortfolioSummary | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
@@ -180,12 +215,24 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!userMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [userMenuOpen]);
+
+  useEffect(() => {
     if (!session) {
       resetDashboardState();
       return;
     }
     if (activeTab === 'collection') {
       void loadCollection();
+      void loadPortfolio({ silent: true });
     } else if (activeTab === 'portfolio') {
       void loadPortfolio();
     } else if (activeTab === 'marketplace') {
@@ -193,6 +240,51 @@ function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, activeTab, showMineOnly]);
+
+  useEffect(() => {
+    setUserMenuOpen(false);
+    setCollectionMenuOpen(false);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!showAddModal) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    const query = searchQuery.trim();
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      setSearchLoading(true);
+      void (async () => {
+        try {
+          const response = await apiRequest<{ items: CatalogApiItem[] }>(
+            `/catalog/search?q=${encodeURIComponent(query)}`,
+            { signal: controller.signal },
+          );
+          const mapped = dedupeCatalogResults(response.items ?? []);
+          setSearchResults(mapped);
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            return;
+          }
+          setToast(error instanceof Error ? error.message : 'Unable to search catalog.');
+        } finally {
+          setSearchLoading(false);
+        }
+      })();
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [searchQuery, showAddModal]);
 
   const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -242,6 +334,7 @@ function App() {
     try {
       const data = await apiRequest<CollectionResponse>('/collection?pageSize=100');
       setCollectionData(data);
+      setBinderPage(1);
     } catch (error) {
       setCollectionError(error instanceof Error ? error.message : 'Unable to load collection.');
     } finally {
@@ -249,16 +342,21 @@ function App() {
     }
   };
 
-  const loadPortfolio = async () => {
-    setPortfolioLoading(true);
-    setPortfolioError(null);
+  const loadPortfolio = async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) {
+      setPortfolioLoading(true);
+      setPortfolioError(null);
+    }
     try {
       const summary = await apiRequest<PortfolioSummary>('/portfolio/summary');
       setPortfolioSummary(summary);
     } catch (error) {
       setPortfolioError(error instanceof Error ? error.message : 'Unable to load portfolio summary.');
     } finally {
-      setPortfolioLoading(false);
+      if (!silent) {
+        setPortfolioLoading(false);
+      }
     }
   };
 
@@ -281,24 +379,6 @@ function App() {
     }
   };
 
-  const handleSearchCards = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!searchQuery.trim()) {
-      return;
-    }
-    setSearchLoading(true);
-    try {
-      const response = await apiRequest<{ items: CatalogCard[] }>(
-        `/catalog/search?q=${encodeURIComponent(searchQuery.trim())}`,
-      );
-      setSearchResults(response.items ?? []);
-    } catch (error) {
-      setToast(error instanceof Error ? error.message : 'Unable to search catalog.');
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
   const handleAddCard = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedCard) return;
@@ -307,6 +387,7 @@ function App() {
       quantity: addForm.quantity,
       finish: addForm.finish,
       condition: addForm.condition,
+      language: addForm.language,
       acquiredPrice: addForm.acquiredPrice ? Number.parseFloat(addForm.acquiredPrice) : undefined,
     };
     try {
@@ -318,10 +399,11 @@ function App() {
       setToast(`Added ${addForm.quantity} × ${selectedCard.name} to your collection.`);
       setShowAddModal(false);
       setSelectedCard(null);
-      setAddForm(defaultAddForm);
+      setAddForm({ ...defaultAddForm });
       setSearchResults([]);
       setSearchQuery('');
       await loadCollection();
+      await loadPortfolio({ silent: true });
     } catch (error) {
       setToast(error instanceof Error ? error.message : 'Unable to add card.');
     }
@@ -341,6 +423,7 @@ function App() {
       setShowImportModal(false);
       setImportPayload('');
       await loadCollection();
+      await loadPortfolio({ silent: true });
     } catch (error) {
       setToast(error instanceof Error ? error.message : 'Unable to import data.');
     } finally {
@@ -420,6 +503,98 @@ function App() {
     }
   };
 
+  const goToNextBinderPage = () => {
+    if (binderPage >= binderTotalPages) return;
+    setBinderFlipDirection('forward');
+    setBinderPage((previous) => Math.min(previous + 1, binderTotalPages));
+  };
+
+  const goToPreviousBinderPage = () => {
+    if (binderPage <= 1) return;
+    setBinderFlipDirection('backward');
+    setBinderPage((previous) => Math.max(previous - 1, 1));
+  };
+
+  const openVersionSelection = async (card: CatalogCard) => {
+    setSelectedCard(null);
+    setVersionBaseCard(card);
+    setVersionResults([]);
+    setVersionError(null);
+    setShowVersionModal(true);
+    setVersionLoading(true);
+    try {
+      const response = await apiRequest<{ items: CatalogApiItem[] }>(`/catalog/${card.id}/prints`);
+      const mapped = (response.items ?? []).map(mapCatalogItem);
+      setVersionResults(mapped);
+    } catch (error) {
+      setVersionError(error instanceof Error ? error.message : 'Unable to load printings.');
+    } finally {
+      setVersionLoading(false);
+    }
+  };
+
+  const handleSelectVersion = (card: CatalogCard) => {
+    setSelectedCard(card);
+    setShowVersionModal(false);
+    setSearchResults([]);
+    setSearchQuery(card.name);
+  };
+
+  const handleOpenEditModal = (entry: CollectionItem) => {
+    setEditingEntry(entry);
+    setEditForm({
+      quantity: entry.quantity,
+      finish: entry.finish,
+      condition: entry.condition,
+      language: entry.language ?? 'en',
+      acquiredPrice: entry.acquiredPrice != null ? String(entry.acquiredPrice) : '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingEntry) return;
+    const payload = {
+      quantity: editForm.quantity,
+      finish: editForm.finish,
+      condition: editForm.condition,
+      language: editForm.language,
+      acquiredPrice:
+        editForm.acquiredPrice === '' ? null : Number.parseFloat(editForm.acquiredPrice),
+    };
+    try {
+      await apiRequest(`/collection/${editingEntry.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      setToast(`${editingEntry.name} updated.`);
+      setShowEditModal(false);
+      setEditingEntry(null);
+      setEditForm({ ...defaultAddForm });
+      await loadCollection();
+      await loadPortfolio({ silent: true });
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : 'Unable to update entry.');
+    }
+  };
+
+  const handleDeleteEntry = async (entry: CollectionItem) => {
+    const confirmed = window.confirm(`Remove ${entry.name} from your collection?`);
+    if (!confirmed) return;
+    try {
+      await apiRequest(`/collection/${entry.id}`, {
+        method: 'DELETE',
+      });
+      setToast(`${entry.name} removed from your collection.`);
+      await loadCollection();
+      await loadPortfolio({ silent: true });
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : 'Unable to remove entry.');
+    }
+  };
+
   const collectionValue = useMemo(() => {
     if (!collectionData?.items) return { total: 0, unique: 0 };
     const total = collectionData.items.reduce((sum, item) => {
@@ -428,6 +603,50 @@ function App() {
     }, 0);
     return { total: Number(total.toFixed(2)), unique: collectionData.items.length };
   }, [collectionData]);
+
+  const trendMap = useMemo(() => {
+    const map = new Map<string, 'up' | 'down'>();
+    if (!portfolioSummary) return map;
+    portfolioSummary.movers.gainers.forEach((mover) => {
+      map.set(mover.id, 'up');
+      map.set(mover.cardId, 'up');
+    });
+    portfolioSummary.movers.losers.forEach((mover) => {
+      map.set(mover.id, 'down');
+      map.set(mover.cardId, 'down');
+    });
+    return map;
+  }, [portfolioSummary]);
+
+  const binderTotalPages = useMemo(() => {
+    if (!collectionData?.items?.length) return 1;
+    return Math.max(1, Math.ceil(collectionData.items.length / BINDER_PAGE_SIZE));
+  }, [collectionData]);
+
+  const binderItems = useMemo(() => {
+    if (!collectionData?.items) return [] as CollectionItem[];
+    const startIndex = (binderPage - 1) * BINDER_PAGE_SIZE;
+    return collectionData.items.slice(startIndex, startIndex + BINDER_PAGE_SIZE);
+  }, [collectionData, binderPage]);
+
+  useEffect(() => {
+    if (collectionView === 'binder') {
+      setBinderPage(1);
+    }
+  }, [collectionView]);
+
+  useEffect(() => {
+    if (binderPage <= binderTotalPages) {
+      return;
+    }
+    setBinderPage(binderTotalPages);
+  }, [binderPage, binderTotalPages]);
+
+  useEffect(() => {
+    if (!binderFlipDirection) return;
+    const timeout = window.setTimeout(() => setBinderFlipDirection(null), 600);
+    return () => window.clearTimeout(timeout);
+  }, [binderFlipDirection]);
 
   const renderLoginView = () => (
     <div className="auth-wrapper">
@@ -501,60 +720,78 @@ function App() {
 
   const renderCollectionTab = () => (
     <div className="dashboard-section">
-      <div className="section-toolbar">
+      <div className="section-toolbar collection-toolbar">
         <div className="stat-card">
           <p>Total Portfolio Value</p>
           <h3>{formatCurrency(collectionValue.total)}</h3>
           <span>{collectionValue.unique} unique cards</span>
         </div>
-        <div className="dropdown">
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => setCollectionMenuOpen((previous) => !previous)}
-          >
-            Manage Collection ▾
-          </button>
-          {collectionMenuOpen && (
-            <div className="dropdown-menu" role="menu">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddModal(true);
-                  setCollectionMenuOpen(false);
-                }}
-              >
-                Add card
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowImportModal(true);
-                  setCollectionMenuOpen(false);
-                }}
-              >
-                Import bulk list
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCollectionMenuOpen(false);
-                  void handleExport('csv');
-                }}
-              >
-                Export CSV
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCollectionMenuOpen(false);
-                  void handleExport('moxfield');
-                }}
-              >
-                Export for Moxfield
-              </button>
-            </div>
-          )}
+        <div className="collection-actions">
+          <div className="view-toggle">
+            <button
+              type="button"
+              className={collectionView === 'table' ? 'active' : ''}
+              onClick={() => setCollectionView('table')}
+            >
+              Table
+            </button>
+            <button
+              type="button"
+              className={collectionView === 'binder' ? 'active' : ''}
+              onClick={() => setCollectionView('binder')}
+            >
+              Binder
+            </button>
+          </div>
+          <div className="dropdown">
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => setCollectionMenuOpen((previous) => !previous)}
+            >
+              Manage Collection ▾
+            </button>
+            {collectionMenuOpen && (
+              <div className="dropdown-menu" role="menu">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddModal(true);
+                    setCollectionMenuOpen(false);
+                  }}
+                >
+                  Add card
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowImportModal(true);
+                    setCollectionMenuOpen(false);
+                  }}
+                >
+                  Import bulk list
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCollectionMenuOpen(false);
+                    void handleExport('csv');
+                  }}
+                >
+                  Export CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCollectionMenuOpen(false);
+                    void handleExport('moxfield');
+                  }}
+                >
+                  Export for Moxfield
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -563,49 +800,107 @@ function App() {
       ) : collectionError ? (
         <div className="panel error">{collectionError}</div>
       ) : collectionData && collectionData.items.length > 0 ? (
-        <div className="collection-grid">
-          {collectionData.items.map((item) => (
-            <article key={item.id} className="collection-card">
-              <div className="card-thumb">
-                {item.imageSmall ? (
-                  <img src={item.imageSmall} alt={item.name} />
-                ) : (
-                  <span className="placeholder-art">{item.name.slice(0, 2).toUpperCase()}</span>
-                )}
-              </div>
-              <div className="card-body">
-                <header>
-                  <h3>{item.name}</h3>
-                  <span>{item.setCode.toUpperCase()} · #{item.collectorNumber}</span>
-                </header>
-                <dl className="card-meta">
-                  <div>
-                    <dt>Quantity</dt>
-                    <dd>{item.quantity}</dd>
-                  </div>
-                  <div>
-                    <dt>Finish</dt>
-                    <dd>{item.finish}</dd>
-                  </div>
-                  <div>
-                    <dt>Condition</dt>
-                    <dd>{item.condition}</dd>
-                  </div>
-                  <div>
-                    <dt>Unit value</dt>
-                    <dd>{formatCurrency(resolveMarketPrice(item))}</dd>
-                  </div>
-                </dl>
-                {item.acquiredPrice ? (
-                  <footer>
-                    <span>Cost basis</span>
-                    <strong>{formatCurrency(item.acquiredPrice)}</strong>
-                  </footer>
-                ) : null}
-              </div>
-            </article>
-          ))}
-        </div>
+        collectionView === 'table' ? (
+          <div className="panel overflow">
+            <table className="collection-table">
+              <thead>
+                <tr>
+                  <th>Card</th>
+                  <th>Qty</th>
+                  <th>Finish</th>
+                  <th>Market price</th>
+                  <th>Trend</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {collectionData.items.map((item) => {
+                  const price = resolveMarketPrice(item);
+                  const trend = trendMap.get(item.id) ?? trendMap.get(item.cardId);
+                  const trendClass = trend === 'up' ? 'trend-up' : trend === 'down' ? 'trend-down' : 'trend-flat';
+                  const trendLabel = trend === 'up' ? 'Upward trend' : trend === 'down' ? 'Downward trend' : 'Stable';
+                  const trendSymbol = trend === 'up' ? '▲' : trend === 'down' ? '▼' : '▬';
+                  return (
+                    <tr key={item.id}>
+                      <td>
+                        <div className="card-cell">
+                          {item.imageSmall ? (
+                            <img src={item.imageSmall} alt={item.name} />
+                          ) : (
+                            <span className="card-placeholder">{item.name.slice(0, 2).toUpperCase()}</span>
+                          )}
+                          <div>
+                            <strong>{item.name}</strong>
+                            <small>{item.setCode.toUpperCase()} · #{item.collectorNumber}</small>
+                            {item.acquiredPrice != null ? (
+                              <span className="muted">Cost basis {formatCurrency(item.acquiredPrice)}</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </td>
+                      <td>{item.quantity}</td>
+                      <td>{item.finish}</td>
+                      <td>{formatCurrency(price)}</td>
+                      <td>
+                        <span className={`trend ${trendClass}`} aria-label={trendLabel}>
+                          {trendSymbol}
+                        </span>
+                      </td>
+                      <td className="actions-cell">
+                        <div className="row-actions">
+                          <button type="button" className="ghost-button" onClick={() => handleOpenEditModal(item)}>
+                            Update
+                          </button>
+                          <button
+                            type="button"
+                            className="ghost-button danger"
+                            onClick={() => handleDeleteEntry(item)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="binder-mode">
+            <div className={`binder-page ${binderFlipDirection ? `flip-${binderFlipDirection}` : ''}`}>
+              {binderItems.map((item) => (
+                <figure key={item.id} className="binder-card">
+                  {item.imageSmall ? (
+                    <img src={item.imageSmall} alt={item.name} />
+                  ) : (
+                    <div className="binder-placeholder">{item.name.slice(0, 2).toUpperCase()}</div>
+                  )}
+                  <figcaption>
+                    <strong>{item.name}</strong>
+                    <small>{formatCurrency(resolveMarketPrice(item))}</small>
+                  </figcaption>
+                </figure>
+              ))}
+              {binderItems.length < BINDER_PAGE_SIZE
+                ? Array.from({ length: BINDER_PAGE_SIZE - binderItems.length }).map((_, index) => (
+                    <div key={`binder-placeholder-${index}`} className="binder-card placeholder" />
+                  ))
+                : null}
+            </div>
+            <div className="binder-controls">
+              <button type="button" onClick={goToPreviousBinderPage} disabled={binderPage === 1}>
+                ‹
+              </button>
+              <span>
+                Page {binderPage} / {binderTotalPages}
+              </span>
+              <button type="button" onClick={goToNextBinderPage} disabled={binderPage === binderTotalPages}>
+                ›
+              </button>
+            </div>
+          </div>
+        )
       ) : (
         <div className="panel muted empty-state">
           <h3>Start cataloguing your collection today!</h3>
@@ -827,9 +1122,33 @@ function App() {
   const renderDashboard = () => (
     <div className="dashboard">
       <header className="dashboard-header">
-        <div className="brand">
-          <span className="badge">MTG Portfolio</span>
-          <h1>Command Center</h1>
+        <div className="header-top">
+          <div className="brand">
+            <span className="badge">MTG Portfolio</span>
+            <h1>Command Center</h1>
+          </div>
+          <div className="user-menu" ref={userMenuRef}>
+            <button
+              type="button"
+              className="icon-button"
+              aria-haspopup="true"
+              aria-expanded={userMenuOpen}
+              onClick={() => setUserMenuOpen((previous) => !previous)}
+            >
+              ⋯
+            </button>
+            {userMenuOpen && (
+              <div className="dropdown-menu align-right" role="menu">
+                <div className="dropdown-meta">
+                  <strong>{session?.name ?? session?.email}</strong>
+                  <span>{session?.email}</span>
+                </div>
+                <button type="button" onClick={handleLogout}>
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <nav className="nav-tabs">
           {NAV_TABS.map((tab) => (
@@ -844,15 +1163,6 @@ function App() {
             </button>
           ))}
         </nav>
-        <div className="user-chip">
-          <div>
-            <strong>{session?.name ?? session?.email}</strong>
-            <span>{session?.email}</span>
-          </div>
-          <button type="button" className="ghost-button" onClick={handleLogout}>
-            Sign out
-          </button>
-        </div>
       </header>
 
       <section className="dashboard-body">
@@ -878,27 +1188,69 @@ function App() {
 
       {showAddModal ? (
         <Modal title="Add to collection" onClose={() => closeAddModal()}>
-          <form className="stack" onSubmit={handleSearchCards}>
+          <div className="stack">
             <label htmlFor="search">Search the catalog</label>
-            <div className="search-row">
-              <input
-                id="search"
-                type="text"
-                placeholder="Card name"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-              />
-              <button type="submit" className="primary-button" disabled={searchLoading}>
-                {searchLoading ? 'Searching…' : 'Search'}
-              </button>
-            </div>
-          </form>
+            <input
+              id="search"
+              type="text"
+              placeholder="Start typing a card name"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+            {!selectedCard ? (
+              <div className="search-results">
+                {searchLoading ? (
+                  <p className="muted">Searching…</p>
+                ) : searchResults.length > 0 ? (
+                  <ul>
+                    {searchResults.map((card) => (
+                      <li key={card.id}>
+                        <button type="button" onClick={() => openVersionSelection(card)}>
+                          {card.imageSmall ? (
+                            <img src={card.imageSmall} alt={card.name} />
+                          ) : (
+                            <span className="card-placeholder">{card.name.slice(0, 2).toUpperCase()}</span>
+                          )}
+                          <div>
+                            <strong>{card.name}</strong>
+                            <small>{card.set.toUpperCase()} · #{card.collectorNumber}</small>
+                          </div>
+                          <span className="chevron">Select</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : searchQuery.trim().length >= 2 ? (
+                  <p className="muted">No matches found. Try refining your search.</p>
+                ) : (
+                  <p className="muted">Type at least two letters to search Scryfall.</p>
+                )}
+              </div>
+            ) : null}
+          </div>
 
           {selectedCard ? (
             <form className="stack" onSubmit={handleAddCard}>
-              <div className="selected-card">
-                <strong>{selectedCard.name}</strong>
-                <span>{selectedCard.set.toUpperCase()} · #{selectedCard.collectorNumber}</span>
+              <div className="selected-card summary">
+                {selectedCard.imageSmall ? (
+                  <img src={selectedCard.imageSmall} alt={selectedCard.name} />
+                ) : (
+                  <span className="card-placeholder">{selectedCard.name.slice(0, 2).toUpperCase()}</span>
+                )}
+                <div>
+                  <strong>{selectedCard.name}</strong>
+                  <span>{selectedCard.set.toUpperCase()} · #{selectedCard.collectorNumber}</span>
+                  <span className="muted">
+                    Market price {formatCurrency(selectedCard.usd ?? selectedCard.usdFoil ?? 0)}
+                  </span>
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={() => openVersionSelection(selectedCard)}
+                  >
+                    Choose a different printing
+                  </button>
+                </div>
               </div>
               <div className="form-grid">
                 <label>
@@ -938,6 +1290,18 @@ function App() {
                   </select>
                 </label>
                 <label>
+                  Language
+                  <select
+                    value={addForm.language}
+                    onChange={(event) => setAddForm((previous) => ({ ...previous, language: event.target.value }))}
+                  >
+                    <option value="en">English</option>
+                    <option value="ja">Japanese</option>
+                    <option value="es">Spanish</option>
+                    <option value="de">German</option>
+                  </select>
+                </label>
+                <label>
                   Cost basis (optional)
                   <input
                     type="number"
@@ -953,28 +1317,51 @@ function App() {
                   Add to collection
                 </button>
                 <button type="button" className="ghost-button" onClick={() => setSelectedCard(null)}>
-                  Choose a different card
+                  Clear selection
                 </button>
               </div>
             </form>
-          ) : (
-            <div className="search-results">
-              {searchResults.length === 0 && !searchLoading ? (
-                <p className="muted">Search for a card by name to add it to your collection.</p>
-              ) : (
-                searchResults.map((card) => (
+          ) : null}
+        </Modal>
+      ) : null}
+
+      {showVersionModal ? (
+        <Modal
+          title={versionBaseCard ? `Select a printing for ${versionBaseCard.name}` : 'Select a printing'}
+          onClose={() => closeVersionModal()}
+        >
+          {versionLoading ? (
+            <p className="muted">Loading printings…</p>
+          ) : versionError ? (
+            <div className="panel error">{versionError}</div>
+          ) : versionResults.length > 0 ? (
+            <ul className="version-grid">
+              {versionResults.map((version) => (
+                <li key={version.id}>
                   <button
                     type="button"
-                    key={card.id}
-                    onClick={() => setSelectedCard(card)}
-                    className="search-result"
+                    className={selectedCard?.id === version.id ? 'active' : ''}
+                    onClick={() => handleSelectVersion(version)}
                   >
-                    <strong>{card.name}</strong>
-                    <span>{card.set.toUpperCase()} · #{card.collectorNumber}</span>
+                    {version.imageSmall ? (
+                      <img src={version.imageSmall} alt={version.name} />
+                    ) : (
+                      <span className="card-placeholder">{version.name.slice(0, 2).toUpperCase()}</span>
+                    )}
+                    <div>
+                      <strong>{version.set.toUpperCase()}</strong>
+                      <span>#{version.collectorNumber}</span>
+                      <small>
+                        {version.usd != null ? formatCurrency(version.usd) : '—'}
+                        {version.usdFoil != null ? ` · Foil ${formatCurrency(version.usdFoil)}` : ''}
+                      </small>
+                    </div>
                   </button>
-                ))
-              )}
-            </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">No other printings were found.</p>
           )}
         </Modal>
       ) : null}
@@ -1100,6 +1487,96 @@ function App() {
           </form>
         </Modal>
       ) : null}
+
+      {showEditModal && editingEntry ? (
+        <Modal title={`Update ${editingEntry.name}`} onClose={() => closeEditModal()}>
+          <form className="stack" onSubmit={handleEditSubmit}>
+            <div className="selected-card summary">
+              {editingEntry.imageSmall ? (
+                <img src={editingEntry.imageSmall} alt={editingEntry.name} />
+              ) : (
+                <span className="card-placeholder">{editingEntry.name.slice(0, 2).toUpperCase()}</span>
+              )}
+              <div>
+                <strong>{editingEntry.name}</strong>
+                <span>{editingEntry.setCode.toUpperCase()} · #{editingEntry.collectorNumber}</span>
+                <span className="muted">Currently {editingEntry.quantity} copy/copies</span>
+              </div>
+            </div>
+            <div className="form-grid">
+              <label>
+                Quantity
+                <input
+                  type="number"
+                  min={1}
+                  max={999}
+                  value={editForm.quantity}
+                  onChange={(event) =>
+                    setEditForm((previous) => ({
+                      ...previous,
+                      quantity: Number.parseInt(event.target.value, 10) || 1,
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                Finish
+                <select
+                  value={editForm.finish}
+                  onChange={(event) => setEditForm((previous) => ({ ...previous, finish: event.target.value }))}
+                >
+                  <option value="NONFOIL">Non-foil</option>
+                  <option value="FOIL">Foil</option>
+                  <option value="ETCHED">Etched</option>
+                </select>
+              </label>
+              <label>
+                Condition
+                <select
+                  value={editForm.condition}
+                  onChange={(event) => setEditForm((previous) => ({ ...previous, condition: event.target.value }))}
+                >
+                  <option value="NM">Near Mint</option>
+                  <option value="LP">Lightly Played</option>
+                  <option value="MP">Moderately Played</option>
+                  <option value="HP">Heavily Played</option>
+                  <option value="DMG">Damaged</option>
+                </select>
+              </label>
+              <label>
+                Language
+                <select
+                  value={editForm.language}
+                  onChange={(event) => setEditForm((previous) => ({ ...previous, language: event.target.value }))}
+                >
+                  <option value="en">English</option>
+                  <option value="ja">Japanese</option>
+                  <option value="es">Spanish</option>
+                  <option value="de">German</option>
+                </select>
+              </label>
+              <label>
+                Cost basis (optional)
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={editForm.acquiredPrice}
+                  onChange={(event) => setEditForm((previous) => ({ ...previous, acquiredPrice: event.target.value }))}
+                />
+              </label>
+            </div>
+            <div className="modal-actions">
+              <button type="submit" className="primary-button">
+                Save changes
+              </button>
+              <button type="button" className="ghost-button" onClick={() => closeEditModal()}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
     </div>
   );
 
@@ -1108,7 +1585,18 @@ function App() {
     setSearchQuery('');
     setSearchResults([]);
     setSelectedCard(null);
-    setAddForm(defaultAddForm);
+    setAddForm({ ...defaultAddForm });
+    setShowVersionModal(false);
+    setVersionBaseCard(null);
+    setVersionResults([]);
+    setVersionError(null);
+  }
+
+  function closeVersionModal() {
+    setShowVersionModal(false);
+    setVersionError(null);
+    setVersionResults([]);
+    setVersionBaseCard(null);
   }
 
   function closeImportModal() {
@@ -1128,6 +1616,12 @@ function App() {
       price: '',
       notes: '',
     });
+  }
+
+  function closeEditModal() {
+    setShowEditModal(false);
+    setEditingEntry(null);
+    setEditForm({ ...defaultAddForm });
   }
 
   async function refreshSession() {
@@ -1175,6 +1669,40 @@ function Modal({ children, onClose, title }: { children: ReactNode; onClose: () 
       </div>
     </div>
   );
+}
+
+function mapCatalogItem(item: CatalogApiItem): CatalogCard {
+  const usd = item.prices?.usd;
+  const usdFoil = item.prices?.usd_foil;
+  return {
+    id: item.id,
+    name: item.name,
+    set: item.set,
+    collectorNumber: item.collector_number,
+    imageSmall: item.image_uris?.small,
+    imageNormal: item.image_uris?.normal,
+    usd: usd != null ? Number.parseFloat(String(usd)) : undefined,
+    usdFoil: usdFoil != null ? Number.parseFloat(String(usdFoil)) : undefined,
+  };
+}
+
+function dedupeCatalogResults(items: CatalogApiItem[]): CatalogCard[] {
+  const map = new Map<string, CatalogCard>();
+  items.forEach((item) => {
+    const normalizedName = item.name.toLowerCase();
+    const card = mapCatalogItem(item);
+    if (!map.has(normalizedName)) {
+      map.set(normalizedName, card);
+      return;
+    }
+    const existing = map.get(normalizedName)!;
+    const existingPrice = existing.usd ?? existing.usdFoil ?? 0;
+    const candidatePrice = card.usd ?? card.usdFoil ?? 0;
+    if (candidatePrice > existingPrice) {
+      map.set(normalizedName, card);
+    }
+  });
+  return Array.from(map.values());
 }
 
 async function apiRequest<T>(path: string, init: RequestInit = {}, parseJson = true): Promise<T> {

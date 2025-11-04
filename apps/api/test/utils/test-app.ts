@@ -14,6 +14,7 @@ export type FakeScryfall = {
   searchByNamePrefix: jest.MockedFunction<ScryfallClient['searchByNamePrefix']>;
   getById: jest.MockedFunction<ScryfallClient['getById']>;
   findByName: jest.MockedFunction<ScryfallClient['findByName']>;
+  listPrints: jest.MockedFunction<ScryfallClient['listPrints']>;
 };
 
 export type TestApp = {
@@ -227,6 +228,16 @@ function createFakeScryfall() {
         throw new Error(`Card ${name} does not belong to set ${setCode}`);
       }
       return card;
+    }),
+    listPrints: jest.fn(async (id: string) => {
+      const card = cardsById.get(id);
+      if (!card) throw new Error(`Unknown card id ${id}`);
+      const variants = cards.filter((candidate) => candidate.name === card.name);
+      return {
+        data: variants,
+        has_more: false,
+        total_cards: variants.length,
+      };
     }),
   };
 

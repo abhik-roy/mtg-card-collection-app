@@ -99,6 +99,11 @@ export class ScryfallClient {
     return (await this.getJson(url)) as ScryfallCard;
   }
 
+  async listPrints(cardId: string): Promise<ScryfallListResponse<ScryfallCard>> {
+    const url = `${SCRYFALL_BASE_URL}/${cardId}/prints`;
+    return (await this.getJson(url)) as ScryfallListResponse<ScryfallCard>;
+  }
+
   private async getJson(url: string): Promise<unknown> {
     const cached = this.cache.get(url);
     if (cached) {

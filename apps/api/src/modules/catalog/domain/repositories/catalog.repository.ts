@@ -25,6 +25,8 @@ export interface CatalogRepository {
   ): Promise<CatalogSearchResult>;
 
   getById(id: string): Promise<CatalogCard | null>;
+
+  listPrints(cardId: string): Promise<CatalogSearchResult>;
 }
 
 export const CATALOG_REPOSITORY = Symbol('CATALOG_REPOSITORY');

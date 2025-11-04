@@ -3,6 +3,7 @@ import { ScryfallClient } from '../../shared/infra/http/scryfall.client';
 import { CatalogController } from './rest/catalog.controller';
 import { SearchByNameQuery } from './app/queries/search-by-name.query';
 import { GetByIdQuery } from './app/queries/get-by-id.query';
+import { ListCardPrintsQuery } from './app/queries/list-prints.query';
 import { CATALOG_REPOSITORY } from './domain/repositories/catalog.repository';
 import { CatalogApiRepository } from './infra/catalog.api.repository';
 
@@ -12,6 +13,7 @@ import { CatalogApiRepository } from './infra/catalog.api.repository';
     ScryfallClient,
     SearchByNameQuery,
     GetByIdQuery,
+    ListCardPrintsQuery,
     {
       provide: CATALOG_REPOSITORY,
       useClass: CatalogApiRepository,

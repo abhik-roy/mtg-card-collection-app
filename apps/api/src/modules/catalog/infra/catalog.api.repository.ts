@@ -37,4 +37,15 @@ export class CatalogApiRepository implements CatalogRepository {
       return null;
     }
   }
+
+  async listPrints(cardId: string): Promise<CatalogSearchResult> {
+    const response = await this.scryfallClient.listPrints(cardId);
+    const items = response.data.map(CatalogMapper.toDomain);
+
+    return {
+      items,
+      hasMore: response.has_more,
+      total: response.total_cards,
+    };
+  }
 }
