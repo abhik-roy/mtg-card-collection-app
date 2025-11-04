@@ -29,6 +29,7 @@ type CollectionItem = {
   name: string;
   quantity: number;
   finish: string;
+  imageSmall?: string | null;
   usd?: number | null;
   usdFoil?: number | null;
   setCode: string;
