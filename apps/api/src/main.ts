@@ -39,7 +39,7 @@ async function bootstrap() {
       if (lower === 'access-control-allow-origin' || lower === 'set-cookie') {
         Logger.debug(value, `[RES-HDR] ${key}`);
       }
-      return originalSetHeader(key, value);
+      return originalSetHeader(key, value as Parameters<typeof originalSetHeader>[1]);
     };
 
     next();

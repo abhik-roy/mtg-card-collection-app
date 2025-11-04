@@ -71,7 +71,8 @@ export function isOriginAllowed(origin: string, matchers: OriginMatcher[]): bool
   });
 }
 
-type OriginCallback = (err: Error | null, allow?: boolean | CorsOptions) => void;
+type StaticOrigin = boolean | string | RegExp | (string | RegExp)[];
+type OriginCallback = (err: Error | null, allow?: StaticOrigin) => void;
 
 export function createCorsOrigin(matchers: OriginMatcher[]): CorsOptions['origin'] {
   const allowedForLog = matchers.map((matcher) => matcher.raw).join(', ') || 'none';
