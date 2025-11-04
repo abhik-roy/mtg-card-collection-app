@@ -11,8 +11,28 @@ export class AuthController {
   private readonly frontendRedirect: string;
 
   constructor(private readonly authService: AuthService, private readonly config: ConfigService) {
+    const explicitRedirect = this.config.get<string>('FRONTEND_REDIRECT_URL');
+    if (explicitRedirect) {
+      this.frontendRedirect = explicitRedirect;
+      return;
+    }
+
     const origins = this.config.get<string>('ALLOWED_ORIGINS');
-    this.frontendRedirect = origins ? origins.split(',').map((origin) => origin.trim()).filter(Boolean)[0] ?? 'http://localhost:5173' : 'http://localhost:5173';
+    const fallback =
+      origins
+        ?.split(',')
+        .map((origin) => origin.trim())
+        .find((origin) => origin && !origin.includes('*') && !origin.startsWith('regex:')) ?? null;
+
+    if (!fallback) {
+      Logger.warn(
+        'FRONTEND_REDIRECT_URL not set and no explicit origin found in ALLOWED_ORIGINS; defaulting to http://localhost:5173',
+        'AuthController',
+      );
+      this.frontendRedirect = 'http://localhost:5173';
+    } else {
+      this.frontendRedirect = fallback;
+    }
   }
 
   @Post('register')
