@@ -6,7 +6,7 @@ import { AppModule } from './app.module';
 import { ProblemDetailsFilter } from './shared/presentation/problem.filter';
 import helmet from 'helmet';
 import cookieParser = require('cookie-parser');
-import { buildOriginMatchers, createCorsOrigin } from './shared/infra/http/cors.util';
+import { buildOriginMatchers, isOriginAllowed } from './shared/infra/http/cors.util';
 import type { Request, Response, NextFunction } from 'express';
 
 async function bootstrap() {
@@ -14,7 +14,8 @@ async function bootstrap() {
   const config = app.get(ConfigService);
 
   // Trust Railway's proxy so secure cookies/SameSite=None survive.
-  app.set('trust proxy', 1);
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('trust proxy', 1);
   app.setGlobalPrefix('api');
   app.use(cookieParser());
 
@@ -44,32 +45,34 @@ async function bootstrap() {
   });
 
   const debugCors = config.get<string>('DEBUG_CORS') === '1';
+  const matchers = buildOriginMatchers(config.get<string>('ALLOWED_ORIGINS'));
 
+  Logger.log(
+    `CORS allowed origins: ${
+      debugCors ? 'DEBUG_CORS_ANY' : matchers.map((matcher) => matcher.raw).join(', ') || 'none (defaults)'
+    }`,
+    'CORS',
+  );
   if (debugCors) {
     Logger.warn('DEBUG_CORS enabled: allowing all origins with credentials.', 'CORS');
-    app.enableCors({
-      origin: true,
-      credentials: true,
-      methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-      exposedHeaders: ['Set-Cookie'],
-      maxAge: 86400,
-    });
-  } else {
-    const matchers = buildOriginMatchers(config.get<string>('ALLOWED_ORIGINS'));
-    Logger.log(
-      `CORS allowed origins: ${matchers.map((matcher) => matcher.raw).join(', ') || 'none (using defaults)'}`,
-      'CORS',
-    );
-    app.enableCors({
-      origin: createCorsOrigin(matchers),
-      credentials: true,
-      methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-      exposedHeaders: ['Set-Cookie'],
-      maxAge: 86400,
-    });
   }
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      const allowed = !origin || debugCors || isOriginAllowed(origin, matchers);
+      if (allowed) {
+        callback(null, origin ?? true);
+      } else {
+        Logger.warn(`CORS blocked origin "${origin}"`, 'CORS');
+        callback(new Error(`Origin not allowed: ${origin}`));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie'],
+    maxAge: 86400,
+  });
 
   app.use(helmet({ contentSecurityPolicy: false }));
   app.useGlobalPipes(new ZodValidationPipe());
