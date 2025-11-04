@@ -5,6 +5,12 @@ export type CatalogCard = {
   collectorNumber: string;
   lang: string;
   rarity?: string;
+  colorIdentity?: string[];
+  typeLine?: string;
+  setType?: string;
+  releasedAt?: string;
+  manaValue?: number;
+  legalities?: Record<string, string>;
   imageSmall?: string;
   imageNormal?: string;
   usd?: number;

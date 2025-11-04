@@ -14,6 +14,8 @@ export type ScryfallListResponse<T> = {
   total_cards?: number;
 };
 
+export type ScryfallLegalities = Record<string, 'legal' | 'not_legal' | 'restricted' | 'banned'>;
+
 export type ScryfallCard = {
   id: string;
   name: string;
@@ -21,6 +23,12 @@ export type ScryfallCard = {
   collector_number: string;
   lang: string;
   rarity?: string;
+  color_identity?: string[];
+  type_line?: string;
+  set_type?: string;
+  released_at?: string;
+  cmc?: number;
+  legalities?: ScryfallLegalities;
   image_uris?: {
     small?: string;
     normal?: string;

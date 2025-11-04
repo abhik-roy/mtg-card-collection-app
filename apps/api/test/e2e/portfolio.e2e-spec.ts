@@ -52,6 +52,47 @@ describe('Portfolio API (e2e)', () => {
         acquiredPrice: 0.4,
       })
       .expect(201);
+
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    await prisma.priceSnapshot.createMany({
+      data: [
+        {
+          cardId: 'stormchaser-talent-001',
+          asOfDate: weekAgo,
+          usd: 3.25,
+          usdFoil: 3.6,
+          listingsCount: 18,
+          demandScore: 0.42,
+        },
+        {
+          cardId: 'stormchaser-talent-001',
+          asOfDate: now,
+          usd: 3.75,
+          usdFoil: 4.0,
+          listingsCount: 15,
+          demandScore: 0.55,
+        },
+        {
+          cardId: 'lose-focus-001',
+          asOfDate: weekAgo,
+          usd: 0.22,
+          usdFoil: 0.28,
+          listingsCount: 40,
+          demandScore: 0.31,
+        },
+        {
+          cardId: 'lose-focus-001',
+          asOfDate: now,
+          usd: 0.14,
+          usdFoil: 0.18,
+          listingsCount: 36,
+          demandScore: 0.29,
+        },
+      ],
+      skipDuplicates: true,
+    });
   });
 
   afterAll(async () => {
@@ -79,10 +120,47 @@ describe('Portfolio API (e2e)', () => {
         gainers: expect.any(Array),
         losers: expect.any(Array),
       },
+      trend: {
+        timeframe: expect.any(String),
+        series: expect.any(Array),
+      },
+      distributions: {
+        set: expect.any(Array),
+        finish: expect.any(Array),
+        colorIdentity: expect.any(Array),
+        format: expect.any(Array),
+        rarity: expect.any(Array),
+      },
+      heatmaps: {
+        formatByColor: expect.objectContaining({
+          x: expect.any(Array),
+          y: expect.any(Array),
+          cells: expect.any(Array),
+        }),
+        rarityByFinish: expect.objectContaining({
+          x: expect.any(Array),
+          y: expect.any(Array),
+          cells: expect.any(Array),
+        }),
+      },
+      moversByWindow: {
+        daily: expect.any(Object),
+        weekly: expect.any(Object),
+        monthly: expect.any(Object),
+      },
+      volatility: expect.objectContaining({
+        summary: expect.any(Object),
+        items: expect.any(Array),
+      }),
+      watchlist: expect.objectContaining({
+        upcoming: expect.any(Array),
+        triggered: expect.any(Array),
+      }),
+      trendIndicators: expect.any(Object),
       lastUpdated: expect.any(String),
     });
 
-    const { totals, topHoldings, movers } = response.body;
+    const { totals, topHoldings, movers, trendIndicators } = response.body;
 
     // current prices from fake Scryfall client: foil stormchaser = 4.00, lose focus = 0.14
     expect(totals.currentValue).toBeCloseTo(2 * 4.0 + 3 * 0.14, 2);
@@ -92,6 +170,14 @@ describe('Portfolio API (e2e)', () => {
 
     expect(movers.gainers.length).toBeGreaterThanOrEqual(1);
     expect(movers.losers.length).toBeGreaterThanOrEqual(1);
+
+    const stormTrend = trendIndicators['stormchaser-talent-001'];
+    expect(stormTrend).toBeDefined();
+    expect(stormTrend.direction).toBe('UP');
+
+    const loseTrend = trendIndicators['lose-focus-001'];
+    expect(loseTrend).toBeDefined();
+    expect(loseTrend.direction).toBe('DOWN');
 
     const loser = movers.losers.find((mover: any) => mover.cardId === 'lose-focus-001');
     expect(loser).toBeDefined();

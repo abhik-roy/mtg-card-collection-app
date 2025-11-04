@@ -20,6 +20,13 @@ export type CollectionListItem = {
   name: string;
   setCode: string;
   collectorNumber: string;
+  rarity?: string;
+  colorIdentity?: string[];
+  typeLine?: string;
+  setType?: string;
+  releasedAt?: string;
+  manaValue?: number;
+  formats?: Record<string, string>;
   imageSmall?: string;
   usd?: number;
   usdFoil?: number;

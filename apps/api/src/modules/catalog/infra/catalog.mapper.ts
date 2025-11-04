@@ -8,6 +8,9 @@ export class CatalogMapper {
     const imageNormal =
       card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal;
 
+    const colorIdentity = card.color_identity?.map((symbol) => symbol.toUpperCase());
+    const legalities = card.legalities ? { ...card.legalities } : undefined;
+
     return {
       id: card.id,
       name: card.name,
@@ -15,6 +18,12 @@ export class CatalogMapper {
       collectorNumber: card.collector_number,
       lang: card.lang,
       rarity: card.rarity,
+      colorIdentity,
+      typeLine: card.type_line,
+      setType: card.set_type,
+      releasedAt: card.released_at,
+      manaValue: typeof card.cmc === 'number' ? card.cmc : undefined,
+      legalities,
       imageSmall,
       imageNormal,
       usd: card.prices?.usd ? Number(card.prices.usd) : undefined,

@@ -64,6 +64,12 @@ model CatalogCache {
   collectorNumber String
   lang            String
   rarity          String?
+  colorIdentity   String?
+  typeLine        String?
+  setType         String?
+  releasedAt      DateTime?
+  manaValue       Float?
+  formats         Json?
   imageSmall      String?
   imageNormal     String?
   usd             Float?
@@ -74,6 +80,48 @@ model CatalogCache {
 
   @@index([name])
   @@index([setCode])
+}
+
+model PriceSnapshot {
+  cardId         String
+  asOfDate       DateTime
+  usd            Float?
+  usdFoil        Float?
+  listingsCount  Int?
+  buylistPrice   Float?
+  demandScore    Float?
+  createdAt      DateTime @default(now())
+
+  @@id([cardId, asOfDate])
+  @@index([asOfDate])
+}
+
+model PortfolioValueSnapshot {
+  userId         String
+  asOfDate       DateTime
+  totalValue     Float
+  costBasis      Float
+  cashIn         Float?
+  cashOut        Float?
+  benchmarkValue Float?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, asOfDate])
+  @@index([asOfDate])
+}
+
+model CardLiquiditySnapshot {
+  cardId        String
+  asOfDate      DateTime
+  listingsCount Int
+  buylistCount  Int?
+  buylistHigh   Float?
+  createdAt     DateTime @default(now())
+
+  @@id([cardId, asOfDate])
+  @@index([asOfDate])
 }
 
 model PriceWatch {
@@ -107,6 +155,7 @@ model User {
   decks             Deck[]
   externalIdentities ExternalIdentity[]
   marketplaceListings MarketplaceListing[]
+  portfolioSnapshots PortfolioValueSnapshot[]
 }
 
 model Deck {

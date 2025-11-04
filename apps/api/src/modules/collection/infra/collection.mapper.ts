@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { UniqueEntityId } from '../../../shared/domain/core/unique-entity-id';
 import { CollectionEntry } from '../domain/entities/collection-entry';
 import { Condition } from '../domain/value-objects/condition.vo';
@@ -24,6 +25,14 @@ export type PrismaCollectionWithCache = PrismaCollectionEntry & {
     name: string;
     setCode: string;
     collectorNumber: string;
+     lang: string;
+     rarity: string | null;
+     colorIdentity: string | null;
+     typeLine: string | null;
+     setType: string | null;
+     releasedAt: Date | null;
+     manaValue: number | null;
+     formats: Prisma.JsonValue | null;
     imageSmall: string | null;
     usd: number | null;
     usdFoil: number | null;

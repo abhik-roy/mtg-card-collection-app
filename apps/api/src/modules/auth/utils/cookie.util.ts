@@ -1,16 +1,42 @@
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 
 const TEN_MINUTES = 10 * 60 * 1000;
 const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
 
-const secure =
+const secureByDefault =
   process.env.NODE_ENV === 'production' ||
   process.env.COOKIE_SECURE === 'true' ||
   process.env.COOKIE_SECURE === '1';
 
-const sameSite: 'lax' | 'none' = secure ? 'none' : 'lax';
+type CookieSecurityOptions = {
+  secure: boolean;
+  sameSite: 'lax' | 'none';
+};
 
-export function setTemporaryCookie(res: Response, name: string, value: string) {
+function resolveCookieSecurity(res: Response, req?: Request): CookieSecurityOptions {
+  const request = req ?? (res as Response & { req?: Request }).req;
+  let secure = secureByDefault;
+
+  if (secure && request) {
+    const forwardedProtoHeader = request.headers['x-forwarded-proto'];
+    const forwardedProto = Array.isArray(forwardedProtoHeader)
+      ? forwardedProtoHeader[0]
+      : forwardedProtoHeader;
+    const isForwardedSecure =
+      typeof forwardedProto === 'string' && forwardedProto.split(',')[0]?.trim() === 'https';
+
+    const isRequestSecure = request.secure || isForwardedSecure;
+    if (!isRequestSecure) {
+      secure = false;
+    }
+  }
+
+  const sameSite: 'lax' | 'none' = secure ? 'none' : 'lax';
+  return { secure, sameSite };
+}
+
+export function setTemporaryCookie(res: Response, name: string, value: string, req?: Request) {
+  const { secure, sameSite } = resolveCookieSecurity(res, req);
   res.cookie(name, value, {
     httpOnly: true,
     sameSite,
@@ -19,7 +45,8 @@ export function setTemporaryCookie(res: Response, name: string, value: string) {
   });
 }
 
-export function clearCookie(res: Response, name: string) {
+export function clearCookie(res: Response, name: string, req?: Request) {
+  const { secure, sameSite } = resolveCookieSecurity(res, req);
   res.clearCookie(name, {
     httpOnly: true,
     sameSite,
@@ -27,7 +54,8 @@ export function clearCookie(res: Response, name: string) {
   });
 }
 
-export function setSessionCookie(res: Response, token: string) {
+export function setSessionCookie(res: Response, token: string, req?: Request) {
+  const { secure, sameSite } = resolveCookieSecurity(res, req);
   res.cookie('sid', token, {
     httpOnly: true,
     sameSite,

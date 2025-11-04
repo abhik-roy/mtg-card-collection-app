@@ -17,6 +17,13 @@ type CachedCardSnapshot = {
   name: string;
   setCode: string;
   collectorNumber: string;
+  rarity?: string;
+  colorIdentity?: string[];
+  typeLine?: string;
+  setType?: string;
+  releasedAt?: Date;
+  manaValue?: number;
+  formats?: Record<string, string>;
   imageSmall?: string;
   usd?: number;
   usdFoil?: number;
@@ -161,6 +168,12 @@ export class CollectionPrismaRepository implements CollectionRepository {
             collectorNumber: domainCard.collectorNumber,
             lang: domainCard.lang,
             rarity: domainCard.rarity,
+            colorIdentity: domainCard.colorIdentity?.join(',') ?? null,
+            typeLine: domainCard.typeLine ?? null,
+            setType: domainCard.setType ?? null,
+            releasedAt: domainCard.releasedAt ? new Date(domainCard.releasedAt) : null,
+            manaValue: domainCard.manaValue ?? null,
+            formats: domainCard.legalities ?? Prisma.JsonNull,
             imageSmall: domainCard.imageSmall,
             imageNormal: domainCard.imageNormal,
             usd: domainCard.usd,
@@ -172,6 +185,12 @@ export class CollectionPrismaRepository implements CollectionRepository {
             collectorNumber: domainCard.collectorNumber,
             lang: domainCard.lang,
             rarity: domainCard.rarity,
+            colorIdentity: domainCard.colorIdentity?.join(',') ?? null,
+            typeLine: domainCard.typeLine ?? null,
+            setType: domainCard.setType ?? null,
+            releasedAt: domainCard.releasedAt ? new Date(domainCard.releasedAt) : null,
+            manaValue: domainCard.manaValue ?? null,
+            formats: domainCard.legalities ?? Prisma.JsonNull,
             imageSmall: domainCard.imageSmall,
             imageNormal: domainCard.imageNormal,
             usd: domainCard.usd,
@@ -185,6 +204,13 @@ export class CollectionPrismaRepository implements CollectionRepository {
           name: domainCard.name,
           setCode: domainCard.setCode,
           collectorNumber: domainCard.collectorNumber,
+          rarity: domainCard.rarity,
+          colorIdentity: domainCard.colorIdentity,
+          typeLine: domainCard.typeLine ?? undefined,
+          setType: domainCard.setType ?? undefined,
+          releasedAt: domainCard.releasedAt ? new Date(domainCard.releasedAt) : undefined,
+          manaValue: domainCard.manaValue ?? undefined,
+          formats: domainCard.legalities ?? undefined,
           imageSmall: domainCard.imageSmall,
           usd: domainCard.usd,
           usdFoil: domainCard.usdFoil,
@@ -206,6 +232,11 @@ export class CollectionPrismaRepository implements CollectionRepository {
     fallback: CachedCardSnapshot | undefined,
   ): CollectionListItem {
     const cache = record.catalogCache;
+    const colorIdentity = cache?.colorIdentity
+      ? cache.colorIdentity.split(',').map((symbol) => symbol.trim()).filter(Boolean)
+      : fallback?.colorIdentity;
+    const formats = normalizeFormats(cache?.formats) ?? fallback?.formats;
+    const releasedAt = cache?.releasedAt ?? fallback?.releasedAt;
 
     return {
       id: record.id,
@@ -219,9 +250,28 @@ export class CollectionPrismaRepository implements CollectionRepository {
       name: cache?.name ?? fallback?.name ?? '',
       setCode: cache?.setCode ?? fallback?.setCode ?? '',
       collectorNumber: cache?.collectorNumber ?? fallback?.collectorNumber ?? '',
+      rarity: cache?.rarity ?? fallback?.rarity ?? undefined,
+      colorIdentity: colorIdentity,
+      typeLine: cache?.typeLine ?? fallback?.typeLine ?? undefined,
+      setType: cache?.setType ?? fallback?.setType ?? undefined,
+      releasedAt: releasedAt ? releasedAt.toISOString() : undefined,
+      manaValue: cache?.manaValue ?? fallback?.manaValue ?? undefined,
+      formats,
       imageSmall: cache?.imageSmall ?? fallback?.imageSmall,
       usd: cache?.usd ?? fallback?.usd,
       usdFoil: cache?.usdFoil ?? fallback?.usdFoil,
     };
   }
+}
+
+function normalizeFormats(value: Prisma.JsonValue | null | undefined): Record<string, string> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+  const record = value as Record<string, unknown>;
+  const entries = Object.entries(record).filter(([, status]) => typeof status === 'string');
+  if (entries.length === 0) {
+    return undefined;
+  }
+  return Object.fromEntries(entries) as Record<string, string>;
 }

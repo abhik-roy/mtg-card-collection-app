@@ -53,13 +53,13 @@ export class AuthController {
   }
 
   @Get('google')
-  async beginGoogle(@Res() res: Response) {
-    return this.beginOAuth('google', res);
+  async beginGoogle(@Req() req: Request, @Res() res: Response) {
+    return this.beginOAuth('google', req, res);
   }
 
   @Get('discord')
-  async beginDiscord(@Res() res: Response) {
-    return this.beginOAuth('discord', res);
+  async beginDiscord(@Req() req: Request, @Res() res: Response) {
+    return this.beginOAuth('discord', req, res);
   }
 
   @Get('google/callback')
@@ -92,20 +92,20 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async logout(@Res({ passthrough: true }) res: Response) {
-    clearCookie(res, 'sid');
-    clearCookie(res, 'oauth_state');
-    clearCookie(res, 'oauth_verifier');
-    clearCookie(res, 'oauth_provider');
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    clearCookie(res, 'sid', req);
+    clearCookie(res, 'oauth_state', req);
+    clearCookie(res, 'oauth_verifier', req);
+    clearCookie(res, 'oauth_provider', req);
     return;
   }
 
-  private beginOAuth(provider: 'google' | 'discord', res: Response) {
+  private beginOAuth(provider: 'google' | 'discord', req: Request, res: Response) {
     const { url, state, verifier } =
       provider === 'google' ? this.authService.buildGoogleAuthUrl() : this.authService.buildDiscordAuthUrl();
-    setTemporaryCookie(res, 'oauth_state', state);
-    setTemporaryCookie(res, 'oauth_verifier', verifier);
-    setTemporaryCookie(res, 'oauth_provider', provider);
+    setTemporaryCookie(res, 'oauth_state', state, req);
+    setTemporaryCookie(res, 'oauth_verifier', verifier, req);
+    setTemporaryCookie(res, 'oauth_provider', provider, req);
     return res.redirect(url);
   }
 
@@ -122,9 +122,9 @@ export class AuthController {
 
     const cookies = req.cookies ?? {};
     if (!cookies.oauth_state || cookies.oauth_state !== state || cookies.oauth_provider !== provider) {
-      clearCookie(res, 'oauth_state');
-      clearCookie(res, 'oauth_verifier');
-      clearCookie(res, 'oauth_provider');
+      clearCookie(res, 'oauth_state', req);
+      clearCookie(res, 'oauth_verifier', req);
+      clearCookie(res, 'oauth_provider', req);
       return res.status(400).send('STATE_MISMATCH');
     }
 
@@ -134,15 +134,15 @@ export class AuthController {
           ? await this.authService.completeGoogleCallback(code, cookies.oauth_verifier)
           : await this.authService.completeDiscordCallback(code, cookies.oauth_verifier);
       const sessionToken = this.authService.createSessionToken(auth);
-      clearCookie(res, 'oauth_state');
-      clearCookie(res, 'oauth_verifier');
-      clearCookie(res, 'oauth_provider');
-      setSessionCookie(res, sessionToken);
+      clearCookie(res, 'oauth_state', req);
+      clearCookie(res, 'oauth_verifier', req);
+      clearCookie(res, 'oauth_provider', req);
+      setSessionCookie(res, sessionToken, req);
       return res.redirect(this.frontendRedirect);
     } catch (error) {
-      clearCookie(res, 'oauth_state');
-      clearCookie(res, 'oauth_verifier');
-      clearCookie(res, 'oauth_provider');
+      clearCookie(res, 'oauth_state', req);
+      clearCookie(res, 'oauth_verifier', req);
+      clearCookie(res, 'oauth_provider', req);
       const message = error instanceof Error ? error.message : 'OAuth authentication failed';
       Logger.error(`OAuth ${provider} callback failed: ${message}`, error instanceof Error ? error.stack : undefined, 'AuthController');
       return res.status(400).json({ error: message });
