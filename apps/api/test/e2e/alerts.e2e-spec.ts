@@ -7,6 +7,7 @@ import { createTestApp } from '../utils/test-app';
 describe('Alerts API (e2e)', () => {
   let app: Awaited<ReturnType<typeof createTestApp>> | undefined;
   let prisma: PrismaService;
+  let authCookie: string[] = [];
   let accessToken: string;
   let userId: string;
 
@@ -23,7 +24,11 @@ describe('Alerts API (e2e)', () => {
       })
       .expect(201);
 
+    const cookieHeader = authResponse.headers['set-cookie'];
+    expect(cookieHeader).toBeDefined();
+    authCookie = Array.isArray(cookieHeader) ? cookieHeader : [cookieHeader!];
     accessToken = authResponse.body.accessToken;
+    expect(accessToken).toBeDefined();
     userId = authResponse.body.user.id;
 
     await prisma.catalogCache.create({
@@ -65,6 +70,7 @@ describe('Alerts API (e2e)', () => {
     const response = await supertest(app!.app.getHttpServer())
       .get('/api/alerts')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     expect(response.body.items.length).toBeGreaterThan(0);
@@ -79,6 +85,7 @@ describe('Alerts API (e2e)', () => {
     const createResponse = await supertest(httpServer)
       .post('/api/alerts')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .send({
         cardId: 'stormchaser-talent-001',
         thresholdPercent: 25,
@@ -93,6 +100,7 @@ describe('Alerts API (e2e)', () => {
     const listResponse = await supertest(httpServer)
       .get('/api/alerts')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     const manualWatch = listResponse.body.items.find((watch: any) => watch.contact === 'qa@example.com');
@@ -101,11 +109,13 @@ describe('Alerts API (e2e)', () => {
     await supertest(httpServer)
       .delete(`/api/alerts/${manualWatch.id}`)
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     const afterDelete = await supertest(httpServer)
       .get('/api/alerts')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     const stillExists = afterDelete.body.items.some((watch: any) => watch.id === manualWatch.id);
@@ -118,6 +128,7 @@ describe('Alerts API (e2e)', () => {
     const invalid = await supertest(httpServer)
       .post('/api/alerts')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .send({
         cardId: '',
         thresholdPercent: 0,
@@ -134,6 +145,7 @@ describe('Alerts API (e2e)', () => {
     const missing = await supertest(httpServer)
       .delete('/api/alerts/00000000-0000-4000-8000-000000000001')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(404);
 
     expect(missing.body.error.code).toBe('NOT_FOUND');

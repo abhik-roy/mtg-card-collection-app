@@ -25,6 +25,10 @@ docker compose up --build
 Ensure a PostgreSQL instance is available (the provided compose stack exposes one on
 `localhost:5432`). Update `DATABASE_URL` as needed for production deployments.
 
+Google OAuth redirects rely on `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and
+`GOOGLE_REDIRECT_URI`. The test harness seeds deterministic values, but your
+local `.env` must contain real credentials when running the browser flow.
+
 The Jest configuration automatically transpiles TypeScript via `ts-jest`. The
 e2e harness provisions a dedicated PostgreSQL database per suite (using the
 connection string from `DATABASE_URL`) and tears it down after tests finish.
@@ -33,8 +37,8 @@ existing Postgres instance.
 
 ## Coverage highlights
 
-- **Auth:** registration/login flows and JWT-protected profile checks are
-  exercised end-to-end with bcrypt + Prisma integration.
+- **Auth:** registration/login flows, Google SSO linkage, and JWT-protected
+  profile checks are exercised end-to-end with bcrypt + Prisma integration.
 - **Decks:** CRUD operations and collection diffing logic have e2e coverage,
   verifying deck updates and comparison summaries.
 - **Shared infrastructure:** `LruCache` eviction, Scryfall client caching and
@@ -55,7 +59,8 @@ existing Postgres instance.
   `test/unit/**`. Prefer mocking external interfaces (Prisma, Scryfall) and
   assert on observable side effects.
 - For new HTTP contracts, add supertest-based suites under `test/e2e`. Reuse
-  `createTestApp` to obtain an application instance and fake Scryfall client.
+  `createTestApp` to obtain an application instance and fake Scryfall client so
+  you can focus on behaviour instead of wiring.
 - Keep assertions focused on behaviour (status codes, payload shape, domain
   state) instead of implementation details.
 

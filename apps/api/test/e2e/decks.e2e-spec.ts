@@ -15,6 +15,7 @@ const TEST_DECK = {
 
 describe('Decks API (e2e)', () => {
   let app: Awaited<ReturnType<typeof createTestApp>> | undefined;
+  let authCookie: string[] = [];
   let accessToken: string;
   let deckId: string;
 
@@ -29,7 +30,11 @@ describe('Decks API (e2e)', () => {
       })
       .expect(201);
 
+    const cookieHeader = authResponse.headers['set-cookie'];
+    expect(cookieHeader).toBeDefined();
+    authCookie = Array.isArray(cookieHeader) ? cookieHeader : [cookieHeader!];
     accessToken = authResponse.body.accessToken;
+    expect(accessToken).toBeDefined();
   });
 
   afterAll(async () => {
@@ -42,6 +47,7 @@ describe('Decks API (e2e)', () => {
     const response = await supertest(app!.app.getHttpServer())
       .post('/api/decks')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .send(TEST_DECK)
       .expect(201);
 
@@ -61,6 +67,7 @@ describe('Decks API (e2e)', () => {
     const response = await supertest(app!.app.getHttpServer())
       .get('/api/decks')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     expect(response.body.items.length).toBeGreaterThanOrEqual(1);
@@ -74,6 +81,7 @@ describe('Decks API (e2e)', () => {
     const response = await supertest(app!.app.getHttpServer())
       .get(`/api/decks/${deckId}`)
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     expect(response.body.cards).toHaveLength(2);
@@ -83,6 +91,7 @@ describe('Decks API (e2e)', () => {
     const response = await supertest(app!.app.getHttpServer())
       .patch(`/api/decks/${deckId}`)
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .send({
         name: 'Izzet Tempo v2',
         description: null,
@@ -104,6 +113,7 @@ describe('Decks API (e2e)', () => {
     await supertest(app!.app.getHttpServer())
       .post('/api/collection')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .send({
         cardId: 'stormchaser-talent-001',
         quantity: 2,
@@ -115,6 +125,7 @@ describe('Decks API (e2e)', () => {
     const compare = await supertest(app!.app.getHttpServer())
       .get(`/api/decks/${deckId}/compare`)
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     const main = compare.body.main.find((card: any) => card.cardId === 'stormchaser-talent-001');
@@ -125,11 +136,13 @@ describe('Decks API (e2e)', () => {
     await supertest(app!.app.getHttpServer())
       .delete(`/api/decks/${deckId}`)
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     await supertest(app!.app.getHttpServer())
       .get(`/api/decks/${deckId}`)
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(404);
   });
 });

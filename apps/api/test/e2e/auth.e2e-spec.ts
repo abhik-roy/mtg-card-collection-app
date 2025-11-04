@@ -24,7 +24,7 @@ describe('Auth API (e2e)', () => {
         password: 'Password123!',
       })
       .expect(201);
-
+    expect(response.headers['set-cookie']).toBeDefined();
     expect(response.body).toMatchObject({
       accessToken: expect.any(String),
       user: {
@@ -53,12 +53,20 @@ describe('Auth API (e2e)', () => {
 
     expect(login.body.accessToken).toBeTruthy();
 
+    const cookieHeader = login.headers['set-cookie'];
+    expect(cookieHeader).toBeDefined();
+
     const me = await supertest(app!.app.getHttpServer())
       .get('/api/auth/me')
-      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .set('Cookie', cookieHeader)
       .expect(200);
 
-    expect(me.body.user.email).toBe('auth-login@example.com');
+    expect(me.body).toMatchObject({
+      authenticated: true,
+      user: {
+        email: 'auth-login@example.com',
+      },
+    });
   });
 
   it('prevents duplicate registrations', async () => {

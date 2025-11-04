@@ -8,6 +8,7 @@ import { ScryfallClient } from '../../src/shared/infra/http/scryfall.client';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { ProblemDetailsFilter } from '../../src/shared/presentation/problem.filter';
 import { PrismaService } from '../../src/shared/infra/prisma/prisma.service';
+import cookieParser = require('cookie-parser');
 
 export type FakeScryfall = {
   searchByNamePrefix: jest.MockedFunction<ScryfallClient['searchByNamePrefix']>;
@@ -44,12 +45,20 @@ export async function createTestApp(): Promise<TestApp> {
   const previousAllowedOrigins = process.env.ALLOWED_ORIGINS;
   const previousRateLimitTtl = process.env.RATE_LIMIT_TTL;
   const previousRateLimitMax = process.env.RATE_LIMIT_MAX;
+  const previousGoogleClientId = process.env.GOOGLE_CLIENT_ID;
+  const previousGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const previousGoogleRedirectUri = process.env.GOOGLE_REDIRECT_URI;
+  const previousSessionSecret = process.env.SESSION_SECRET;
   process.env.JWT_SECRET = previousJwtSecret ?? 'test-secret';
   process.env.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? '1h';
   process.env.BCRYPT_SALT_ROUNDS = '4';
   process.env.ALLOWED_ORIGINS = previousAllowedOrigins ?? 'http://localhost:5173';
   process.env.RATE_LIMIT_TTL = previousRateLimitTtl ?? '60';
   process.env.RATE_LIMIT_MAX = previousRateLimitMax ?? '120';
+  process.env.GOOGLE_CLIENT_ID = previousGoogleClientId ?? 'test-google-client-id';
+  process.env.GOOGLE_CLIENT_SECRET = previousGoogleClientSecret ?? 'test-google-client-secret';
+  process.env.GOOGLE_REDIRECT_URI = previousGoogleRedirectUri ?? 'http://localhost:8080/api/auth/google/callback';
+  process.env.SESSION_SECRET = previousSessionSecret ?? process.env.JWT_SECRET ?? 'test-secret';
 
   const projectRoot = path.resolve(__dirname, '../../');
   const prismaBinary =
@@ -83,6 +92,7 @@ export async function createTestApp(): Promise<TestApp> {
 
   const app = moduleRef.createNestApplication();
   app.setGlobalPrefix('api');
+  app.use(cookieParser());
   app.useGlobalPipes(new ZodValidationPipe());
   app.useGlobalFilters(new ProblemDetailsFilter());
   await app.init();
@@ -127,6 +137,26 @@ export async function createTestApp(): Promise<TestApp> {
       process.env.RATE_LIMIT_MAX = previousRateLimitMax;
     } else {
       delete process.env.RATE_LIMIT_MAX;
+    }
+    if (previousGoogleClientId !== undefined) {
+      process.env.GOOGLE_CLIENT_ID = previousGoogleClientId;
+    } else {
+      delete process.env.GOOGLE_CLIENT_ID;
+    }
+    if (previousGoogleClientSecret !== undefined) {
+      process.env.GOOGLE_CLIENT_SECRET = previousGoogleClientSecret;
+    } else {
+      delete process.env.GOOGLE_CLIENT_SECRET;
+    }
+    if (previousGoogleRedirectUri !== undefined) {
+      process.env.GOOGLE_REDIRECT_URI = previousGoogleRedirectUri;
+    } else {
+      delete process.env.GOOGLE_REDIRECT_URI;
+    }
+    if (previousSessionSecret !== undefined) {
+      process.env.SESSION_SECRET = previousSessionSecret;
+    } else {
+      delete process.env.SESSION_SECRET;
     }
     const dropClient = new Client({ connectionString: adminUrl.toString() });
     await dropClient.connect();

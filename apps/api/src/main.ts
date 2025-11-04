@@ -5,6 +5,7 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import { AppModule } from './app.module';
 import { ProblemDetailsFilter } from './shared/presentation/problem.filter';
 import helmet from 'helmet';
+import cookieParser = require('cookie-parser');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -17,7 +18,8 @@ async function bootstrap() {
     ? allowedOrigins.split(',').map((origin) => origin.trim()).filter(Boolean)
     : ['http://localhost:5173'];
 
-  app.enableCors({ origin: originList });
+  app.enableCors({ origin: originList, credentials: true });
+  app.use(cookieParser());
   app.use(helmet({ contentSecurityPolicy: false }));
   app.useGlobalPipes(new ZodValidationPipe());
   app.useGlobalFilters(new ProblemDetailsFilter());

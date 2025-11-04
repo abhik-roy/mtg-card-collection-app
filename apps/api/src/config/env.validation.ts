@@ -30,6 +30,10 @@ const envSchema = z
     JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
     JWT_EXPIRES_IN: z.string().default('1h'),
     BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(4).max(15).default(10),
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
+    GOOGLE_REDIRECT_URI: z.string().url('GOOGLE_REDIRECT_URI must be a valid URL').optional(),
+    SESSION_SECRET: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     const smtpValues = [data.SMTP_HOST, data.SMTP_PORT, data.SMTP_USER, data.SMTP_PASS, data.SMTP_FROM];

@@ -7,6 +7,7 @@ import { createTestApp } from '../utils/test-app';
 describe('Collection API (e2e)', () => {
   let app: Awaited<ReturnType<typeof createTestApp>> | undefined;
   let prisma: PrismaService;
+  let authCookie: string[] = [];
   let accessToken: string;
 
   beforeAll(async () => {
@@ -22,7 +23,11 @@ describe('Collection API (e2e)', () => {
       })
       .expect(201);
 
+    const cookieHeader = authResponse.headers['set-cookie'];
+    expect(cookieHeader).toBeDefined();
+    authCookie = Array.isArray(cookieHeader) ? cookieHeader : [cookieHeader!];
     accessToken = authResponse.body.accessToken;
+    expect(accessToken).toBeDefined();
   });
 
   afterAll(async () => {
@@ -35,6 +40,7 @@ describe('Collection API (e2e)', () => {
     const response = await supertest(app!.app.getHttpServer())
       .get('/api/catalog/search')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .query({ q: 'storm' })
       .expect(200);
 
@@ -55,6 +61,7 @@ describe('Collection API (e2e)', () => {
     const success = await supertest(httpServer)
       .get('/api/catalog/stormchaser-talent-001')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     expect(success.body).toMatchObject({
@@ -66,6 +73,7 @@ describe('Collection API (e2e)', () => {
     const notFound = await supertest(httpServer)
       .get('/api/catalog/unknown-card')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(404);
 
     expect(notFound.body).toMatchObject({
@@ -82,6 +90,7 @@ describe('Collection API (e2e)', () => {
     const createResponse = await supertest(httpServer)
       .post('/api/collection')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .send({
         cardId: 'stormchaser-talent-001',
         quantity: 2,
@@ -96,6 +105,7 @@ describe('Collection API (e2e)', () => {
     const listResponse = await supertest(httpServer)
       .get('/api/collection')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     expect(listResponse.body.items).toEqual(
@@ -112,6 +122,7 @@ describe('Collection API (e2e)', () => {
     const exportResponse = await supertest(httpServer)
       .get('/api/collection/export')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .query({ format: 'csv', includePrices: 'true' })
       .expect(200);
 
@@ -122,6 +133,7 @@ describe('Collection API (e2e)', () => {
     const importResponse = await supertest(httpServer)
       .post('/api/collection/import')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .send({
         format: 'auto',
         payload: '1 Lose Focus (mh2) 75',
@@ -134,6 +146,7 @@ describe('Collection API (e2e)', () => {
     const postImportList = await supertest(httpServer)
       .get('/api/collection')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     expect(postImportList.body.items.length).toBeGreaterThanOrEqual(2);
@@ -143,6 +156,7 @@ describe('Collection API (e2e)', () => {
     await supertest(httpServer)
       .patch(`/api/collection/${entryId}`)
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .send({
         quantity: 4,
         finish: 'NONFOIL',
@@ -153,6 +167,7 @@ describe('Collection API (e2e)', () => {
     const afterUpdate = await supertest(httpServer)
       .get('/api/collection')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     const updated = afterUpdate.body.items.find((item: any) => item.id === entryId);
@@ -165,11 +180,13 @@ describe('Collection API (e2e)', () => {
     await supertest(httpServer)
       .delete(`/api/collection/${entryId}`)
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     const afterDelete = await supertest(httpServer)
       .get('/api/collection')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(200);
 
     const deleted = afterDelete.body.items.find((item: any) => item.id === entryId);
@@ -182,6 +199,7 @@ describe('Collection API (e2e)', () => {
     const response = await supertest(httpServer)
       .post('/api/collection')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .send({
         cardId: '',
         quantity: 0,
@@ -199,6 +217,7 @@ describe('Collection API (e2e)', () => {
     const notFound = await supertest(httpServer)
       .delete('/api/collection/00000000-0000-4000-8000-000000000000')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .expect(404);
 
     expect(notFound.body.error.code).toBe('NOT_FOUND');
@@ -210,6 +229,7 @@ describe('Collection API (e2e)', () => {
     const response = await supertest(httpServer)
       .post('/api/collection/import')
       .set('Authorization', `Bearer ${accessToken}`)
+      .set('Cookie', authCookie)
       .send({
         payload: '2 Missing Card',
       })
