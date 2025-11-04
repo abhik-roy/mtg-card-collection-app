@@ -10,12 +10,19 @@ import { AlertsModule } from './modules/alerts/alerts.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DecksModule } from './modules/decks/decks.module';
 import { DebugModule } from './modules/debug/debug.module';
+import { PortfolioModule } from './modules/portfolio/portfolio.module';
+import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       validate: EnvValidation,
+      envFilePath: [
+        'apps/api/.env.local',
+        `apps/api/.env.${process.env.NODE_ENV ?? 'development'}`,
+        'apps/api/.env',
+      ],
     }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRootAsync({
@@ -34,6 +41,8 @@ import { DebugModule } from './modules/debug/debug.module';
     DecksModule,
     AlertsModule,
     DebugModule,
+    PortfolioModule,
+    MarketplaceModule,
   ],
   providers: [
     {

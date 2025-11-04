@@ -1,7 +1,9 @@
 node_modules/
 .npm-cache/
 apps/api/dist/
-apps/api/.env
 apps/web/dist/
+apps/api/.env
+apps/api/.env.*
 apps/web/.env
+apps/web/.env.*
 .DS_Store

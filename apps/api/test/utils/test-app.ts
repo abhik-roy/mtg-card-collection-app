@@ -49,6 +49,7 @@ export async function createTestApp(): Promise<TestApp> {
   const previousGoogleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const previousGoogleRedirectUri = process.env.GOOGLE_REDIRECT_URI;
   const previousSessionSecret = process.env.SESSION_SECRET;
+  const previousFrontendRedirect = process.env.FRONTEND_REDIRECT_URL;
   process.env.JWT_SECRET = previousJwtSecret ?? 'test-secret';
   process.env.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? '1h';
   process.env.BCRYPT_SALT_ROUNDS = '4';
@@ -59,6 +60,7 @@ export async function createTestApp(): Promise<TestApp> {
   process.env.GOOGLE_CLIENT_SECRET = previousGoogleClientSecret ?? 'test-google-client-secret';
   process.env.GOOGLE_REDIRECT_URI = previousGoogleRedirectUri ?? 'http://localhost:8080/api/auth/google/callback';
   process.env.SESSION_SECRET = previousSessionSecret ?? process.env.JWT_SECRET ?? 'test-secret';
+  process.env.FRONTEND_REDIRECT_URL = previousFrontendRedirect ?? 'http://localhost:5173';
 
   const projectRoot = path.resolve(__dirname, '../../');
   const prismaBinary =
@@ -157,6 +159,11 @@ export async function createTestApp(): Promise<TestApp> {
       process.env.SESSION_SECRET = previousSessionSecret;
     } else {
       delete process.env.SESSION_SECRET;
+    }
+    if (previousFrontendRedirect !== undefined) {
+      process.env.FRONTEND_REDIRECT_URL = previousFrontendRedirect;
+    } else {
+      delete process.env.FRONTEND_REDIRECT_URL;
     }
     const dropClient = new Client({ connectionString: adminUrl.toString() });
     await dropClient.connect();

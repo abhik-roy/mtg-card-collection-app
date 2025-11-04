@@ -215,6 +215,7 @@ export class CollectionPrismaRepository implements CollectionRepository {
       condition: record.condition,
       language: record.language,
       location: record.location ?? undefined,
+      acquiredPrice: record.acquiredPrice ?? undefined,
       name: cache?.name ?? fallback?.name ?? '',
       setCode: cache?.setCode ?? fallback?.setCode ?? '',
       collectorNumber: cache?.collectorNumber ?? fallback?.collectorNumber ?? '',

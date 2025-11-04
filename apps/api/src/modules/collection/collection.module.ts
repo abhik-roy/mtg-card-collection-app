@@ -27,5 +27,6 @@ import { COLLECTION_REPOSITORY } from './domain/repositories/collection.reposito
       useClass: CollectionPrismaRepository,
     },
   ],
+  exports: [COLLECTION_REPOSITORY],
 })
 export class CollectionModule {}

@@ -16,6 +16,7 @@ export type CollectionListItem = {
   condition: string;
   language: string;
   location?: string;
+  acquiredPrice?: number | null;
   name: string;
   setCode: string;
   collectorNumber: string;
