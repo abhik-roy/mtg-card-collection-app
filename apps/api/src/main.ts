@@ -8,6 +8,7 @@ import helmet from 'helmet';
 import cookieParser = require('cookie-parser');
 import { buildOriginMatchers, isOriginAllowed } from './shared/infra/http/cors.util';
 import type { Request, Response, NextFunction } from 'express';
+import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -57,9 +58,14 @@ async function bootstrap() {
     Logger.warn('DEBUG_CORS enabled: allowing all origins with credentials.', 'CORS');
   }
 
-  app.enableCors({
+  const corsOptions: CorsOptions = {
     origin: (origin, callback) => {
-      const allowed = !origin || debugCors || isOriginAllowed(origin, matchers);
+      let allowed = false;
+      if (!origin) {
+        allowed = true;
+      } else if (debugCors || isOriginAllowed(origin, matchers)) {
+        allowed = true;
+      }
       console.log('CORS origin check', { origin, allowed, debugCors });
       if (allowed) {
         callback(null, true);
@@ -73,7 +79,9 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     exposedHeaders: ['Set-Cookie'],
     maxAge: 86400,
-  });
+  };
+
+  app.enableCors(corsOptions);
 
   app.use(helmet({ contentSecurityPolicy: false }));
   app.useGlobalPipes(new ZodValidationPipe());
