@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Logger, Post, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -123,7 +123,9 @@ export class AuthController {
       clearCookie(res, 'oauth_state');
       clearCookie(res, 'oauth_verifier');
       clearCookie(res, 'oauth_provider');
-      return res.status(400).send('OAuth authentication failed');
+      const message = error instanceof Error ? error.message : 'OAuth authentication failed';
+      Logger.error(`OAuth ${provider} callback failed: ${message}`, error instanceof Error ? error.stack : undefined, 'AuthController');
+      return res.status(400).json({ error: message });
     }
   }
 }
