@@ -47,12 +47,12 @@ async function bootstrap() {
   const debugCors = config.get<string>('DEBUG_CORS') === '1';
   const matchers = buildOriginMatchers(config.get<string>('ALLOWED_ORIGINS'));
 
-  Logger.log(
-    `CORS allowed origins: ${
-      debugCors ? 'DEBUG_CORS_ANY' : matchers.map((matcher) => matcher.raw).join(', ') || 'none (defaults)'
-    }`,
-    'CORS',
-  );
+  const allowedList = matchers.map((matcher) => matcher.raw).join(', ') || 'none (defaults)';
+  Logger.log(`CORS allowed origins: ${debugCors ? 'DEBUG_CORS_ANY' : allowedList}`, 'CORS');
+  console.log('CORS configuration', {
+    debugCors,
+    allowedOrigins: debugCors ? ['*'] : allowedList,
+  });
   if (debugCors) {
     Logger.warn('DEBUG_CORS enabled: allowing all origins with credentials.', 'CORS');
   }
@@ -60,11 +60,12 @@ async function bootstrap() {
   app.enableCors({
     origin: (origin, callback) => {
       const allowed = !origin || debugCors || isOriginAllowed(origin, matchers);
+      console.log('CORS origin check', { origin, allowed, debugCors });
       if (allowed) {
-        callback(null, origin ?? true);
+        callback(null, true);
       } else {
         Logger.warn(`CORS blocked origin "${origin}"`, 'CORS');
-        callback(new Error(`Origin not allowed: ${origin}`));
+        callback(null, false);
       }
     },
     credentials: true,
