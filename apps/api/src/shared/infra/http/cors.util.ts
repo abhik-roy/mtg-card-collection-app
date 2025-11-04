@@ -1,4 +1,4 @@
-import type { CorsOptionsDelegate } from '@nestjs/common/interfaces/external/cors-options.interface';
+import type { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { Logger } from '@nestjs/common';
 
 export type OriginMatcher = {
@@ -71,10 +71,12 @@ export function isOriginAllowed(origin: string, matchers: OriginMatcher[]): bool
   });
 }
 
-export function createCorsDelegate(matchers: OriginMatcher[]): CorsOptionsDelegate {
+type OriginCallback = (err: Error | null, allow?: boolean | CorsOptions) => void;
+
+export function createCorsOrigin(matchers: OriginMatcher[]): CorsOptions['origin'] {
   const allowedForLog = matchers.map((matcher) => matcher.raw).join(', ') || 'none';
 
-  return (origin, callback) => {
+  return (origin: string | undefined, callback: OriginCallback) => {
     if (!origin) {
       return callback(null, true);
     }
