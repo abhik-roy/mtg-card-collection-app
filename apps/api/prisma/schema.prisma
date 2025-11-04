@@ -87,14 +87,20 @@ model PriceWatch {
   @@index([contact])
 }
 
+enum IdentityProvider {
+  GOOGLE
+  DISCORD
+}
+
 model User {
   id                String            @id @default(cuid())
   email             String            @unique
-  passwordHash      String
+  passwordHash      String?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   collectionEntries CollectionEntry[]
   decks             Deck[]
+  externalIdentities ExternalIdentity[]
 }
 
 model Deck {
@@ -130,4 +136,20 @@ model DeckCard {
 
   @@unique([deckId, cardId, board])
   @@index([deckId])
+}
+
+model ExternalIdentity {
+  id             String            @id @default(cuid())
+  userId         String
+  provider       IdentityProvider
+  providerUserId String
+  email          String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([email])
+  @@index([userId])
 }

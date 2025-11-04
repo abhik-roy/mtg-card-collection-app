@@ -34,6 +34,9 @@ const envSchema = z
     GOOGLE_CLIENT_SECRET: z.string().optional(),
     GOOGLE_REDIRECT_URI: z.string().url('GOOGLE_REDIRECT_URI must be a valid URL').optional(),
     SESSION_SECRET: z.string().optional(),
+    DISCORD_CLIENT_ID: z.string().optional(),
+    DISCORD_CLIENT_SECRET: z.string().optional(),
+    DISCORD_REDIRECT_URI: z.string().url('DISCORD_REDIRECT_URI must be a valid URL').optional(),
   })
   .superRefine((data, ctx) => {
     const smtpValues = [data.SMTP_HOST, data.SMTP_PORT, data.SMTP_USER, data.SMTP_PASS, data.SMTP_FROM];

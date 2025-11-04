@@ -43,6 +43,10 @@ const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo';
 
+const DISCORD_AUTH_URL = 'https://discord.com/api/oauth2/authorize';
+const DISCORD_TOKEN_URL = 'https://discord.com/api/oauth2/token';
+const DISCORD_USERINFO_URL = 'https://discord.com/api/users/@me';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -108,6 +112,27 @@ export class AuthService {
     url.searchParams.set('code_challenge_method', method);
     url.searchParams.set('access_type', 'offline');
     url.searchParams.set('prompt', 'consent');
+    return { url: url.toString(), state, verifier };
+  }
+
+  buildDiscordAuthUrl() {
+    const clientId = this.config.get<string>('DISCORD_CLIENT_ID');
+    const redirectUri = this.config.get<string>('DISCORD_REDIRECT_URI');
+    if (!clientId || !redirectUri) {
+      throw new InternalServerErrorException('Discord OAuth is not configured');
+    }
+
+    const state = randomString(16);
+    const { verifier, challenge, method } = createPkcePair();
+    const url = new URL(DISCORD_AUTH_URL);
+    url.searchParams.set('client_id', clientId);
+    url.searchParams.set('redirect_uri', redirectUri);
+    url.searchParams.set('response_type', 'code');
+    url.searchParams.set('scope', 'identify email');
+    url.searchParams.set('state', state);
+    url.searchParams.set('code_challenge', challenge);
+    url.searchParams.set('code_challenge_method', method);
+
     return { url: url.toString(), state, verifier };
   }
 
@@ -197,6 +222,101 @@ export class AuthService {
     return this.issueTokens(user, {
       name: profile.name ?? undefined,
       picture: profile.picture ?? undefined,
+    });
+  }
+
+  async completeDiscordCallback(code: string, verifier: string) {
+    const clientId = this.config.get<string>('DISCORD_CLIENT_ID');
+    const clientSecret = this.config.get<string>('DISCORD_CLIENT_SECRET');
+    const redirectUri = this.config.get<string>('DISCORD_REDIRECT_URI');
+    if (!clientId || !clientSecret || !redirectUri) {
+      throw new InternalServerErrorException('Discord OAuth is not configured');
+    }
+    if (!verifier) {
+      throw new BadRequestException('Missing PKCE verifier');
+    }
+
+    const tokenResponse = await request(DISCORD_TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+        client_id: clientId,
+        client_secret: clientSecret,
+        code_verifier: verifier,
+      }).toString(),
+    });
+
+    if (tokenResponse.statusCode >= 400) {
+      throw new UnauthorizedException('Failed to exchange Discord authorization code');
+    }
+
+    const tokenPayload = (await tokenResponse.body.json()) as {
+      access_token?: string;
+      token_type?: string;
+      expires_in?: number;
+      scope?: string;
+    };
+
+    const accessToken = tokenPayload.access_token;
+    if (!accessToken) {
+      throw new UnauthorizedException('Discord token exchange did not return an access token');
+    }
+
+    const userInfoResponse = await request(DISCORD_USERINFO_URL, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (userInfoResponse.statusCode >= 400) {
+      throw new UnauthorizedException('Failed to fetch Discord user profile');
+    }
+
+    const profile = (await userInfoResponse.body.json()) as {
+      id: string;
+      email?: string | null;
+      verified?: boolean;
+      username?: string;
+      global_name?: string | null;
+      avatar?: string | null;
+    };
+
+    if (!profile.email || profile.verified !== true) {
+      throw new UnauthorizedException('Discord account email is not verified');
+    }
+
+    const providerUserId = profile.id;
+    let user = await this.usersService.findByExternalIdentity(IdentityProvider.DISCORD, providerUserId);
+    if (!user) {
+      user = await this.usersService.findByEmail(profile.email);
+      if (!user) {
+        user = await this.usersService.create({
+          email: profile.email,
+          passwordHash: null,
+        });
+      }
+
+      await this.usersService.linkExternalIdentity({
+        userId: user.id,
+        provider: IdentityProvider.DISCORD,
+        providerUserId,
+        email: profile.email,
+      });
+    }
+
+    const name = profile.global_name ?? profile.username ?? null;
+    const picture = profile.avatar
+      ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
+      : null;
+
+    return this.issueTokens(user, {
+      name: name ?? undefined,
+      picture: picture ?? undefined,
     });
   }
 

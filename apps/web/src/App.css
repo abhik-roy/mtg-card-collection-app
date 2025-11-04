@@ -150,7 +150,7 @@
   letter-spacing: 0.08em;
 }
 
-.google-button {
+.oauth-button {
   padding: 0.85rem 1rem;
   border-radius: 14px;
   border: 1px solid rgba(148, 163, 184, 0.25);
@@ -163,17 +163,19 @@
   justify-content: center;
   cursor: pointer;
   transition: background 150ms ease, border-color 150ms ease;
-}
-
-.google-button:hover {
+.oauth-button:hover {
   background: rgba(99, 102, 241, 0.18);
   border-color: rgba(129, 140, 248, 0.45);
 }
 
-.google-button:disabled {
+.oauth-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   background: rgba(30, 41, 59, 0.6);
+}
+
+.oauth-button.discord {
+  margin-top: 0.75rem;
 }
 
 .status {

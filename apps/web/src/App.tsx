@@ -108,6 +108,10 @@ function App() {
     window.location.href = `${API_BASE_URL}/auth/google`;
   };
 
+  const handleDiscordLogin = () => {
+    window.location.href = `${API_BASE_URL}/auth/discord`;
+  };
+
   const handleLogout = async () => {
     try {
       await fetch(`${API_BASE_URL}/auth/logout`, {
@@ -205,8 +209,12 @@ function App() {
           <span className="divider__line" />
         </div>
 
-        <button className="google-button" type="button" onClick={handleGoogleLogin}>
+        <button className="oauth-button" type="button" onClick={handleGoogleLogin}>
           <span aria-hidden>🔒</span> Continue with Google
+        </button>
+
+        <button className="oauth-button discord" type="button" onClick={handleDiscordLogin}>
+          <span aria-hidden>🎮</span> Continue with Discord
         </button>
 
         {message && <p className="status">{message}</p>}
