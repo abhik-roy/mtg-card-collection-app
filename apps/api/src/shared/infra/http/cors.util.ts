@@ -84,7 +84,7 @@ export function createCorsOrigin(matchers: OriginMatcher[]): CorsOptions['origin
     const allowed = isOriginAllowed(origin, matchers);
 
     if (allowed) {
-      return callback(null, true);
+      return callback(null, origin);
     }
 
     Logger.warn(`Blocked CORS origin "${origin}". Allowed origins: ${allowedForLog}`, 'CORS');
