@@ -1,5 +1,6 @@
-import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import './App.css';
+import { type FormEvent, type ReactNode, useEffect, useId, useMemo, useRef, useState } from 'react';
+import './styles/app.base.css';
+import './styles/app.modern.css';
 
 type Tab = 'collection' | 'portfolio' | 'marketplace';
 
@@ -159,6 +160,7 @@ function App() {
   const [collectionLoading, setCollectionLoading] = useState(false);
   const [collectionError, setCollectionError] = useState<string | null>(null);
   const [collectionMenuOpen, setCollectionMenuOpen] = useState(false);
+  const collectionMenuId = useId();
   const [collectionView, setCollectionView] = useState<'table' | 'binder'>('table');
   const [binderPage, setBinderPage] = useState(1);
   const [binderFlipDirection, setBinderFlipDirection] = useState<'forward' | 'backward' | null>(null);
@@ -743,54 +745,69 @@ function App() {
               Binder
             </button>
           </div>
-          <div className="dropdown">
+          <div
+            className="dropdown"
+            data-state={collectionMenuOpen ? 'open' : 'closed'}
+            data-bind="dropdown"
+          >
             <button
               type="button"
               className="primary-button"
+              aria-haspopup="menu"
+              aria-expanded={collectionMenuOpen}
+              aria-controls={collectionMenuId}
               onClick={() => setCollectionMenuOpen((previous) => !previous)}
             >
               Manage Collection ▾
             </button>
-            {collectionMenuOpen && (
-              <div className="dropdown-menu" role="menu">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddModal(true);
-                    setCollectionMenuOpen(false);
-                  }}
-                >
-                  Add card
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowImportModal(true);
-                    setCollectionMenuOpen(false);
-                  }}
-                >
-                  Import bulk list
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCollectionMenuOpen(false);
-                    void handleExport('csv');
-                  }}
-                >
-                  Export CSV
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCollectionMenuOpen(false);
-                    void handleExport('moxfield');
-                  }}
-                >
-                  Export for Moxfield
-                </button>
-              </div>
-            )}
+            <div
+              className="dropdown-menu"
+              role="menu"
+              id={collectionMenuId}
+              data-state={collectionMenuOpen ? 'open' : 'closed'}
+              hidden={!collectionMenuOpen}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setShowAddModal(true);
+                  setCollectionMenuOpen(false);
+                }}
+              >
+                Add card
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setShowImportModal(true);
+                  setCollectionMenuOpen(false);
+                }}
+              >
+                Import bulk list
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setCollectionMenuOpen(false);
+                  void handleExport('csv');
+                }}
+              >
+                Export CSV
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setCollectionMenuOpen(false);
+                  void handleExport('moxfield');
+                }}
+              >
+                Export for Moxfield
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -825,7 +842,14 @@ function App() {
                       <td>
                         <div className="card-cell">
                           {item.imageSmall ? (
-                            <img src={item.imageSmall} alt={item.name} />
+                            <img
+                              src={item.imageSmall}
+                              alt={item.name}
+                              loading="lazy"
+                              decoding="async"
+                              width={80}
+                              height={112}
+                            />
                           ) : (
                             <span className="card-placeholder">{item.name.slice(0, 2).toUpperCase()}</span>
                           )}
@@ -867,27 +891,43 @@ function App() {
             </table>
           </div>
         ) : (
-          <div className="binder-mode">
-            <div className={`binder-page ${binderFlipDirection ? `flip-${binderFlipDirection}` : ''}`}>
-              {binderItems.map((item) => (
-                <figure key={item.id} className="binder-card">
+        <div className="binder-mode">
+          <div className={`binder-page ${binderFlipDirection ? `flip-${binderFlipDirection}` : ''}`}>
+            {binderItems.map((item) => (
+              <figure key={item.id} className="binder-card">
+                <div className="art">
                   {item.imageSmall ? (
-                    <img src={item.imageSmall} alt={item.name} />
+                    <img
+                      src={item.imageSmall}
+                      alt={item.name}
+                      loading="lazy"
+                      decoding="async"
+                      width={250}
+                      height={350}
+                    />
                   ) : (
-                    <div className="binder-placeholder">{item.name.slice(0, 2).toUpperCase()}</div>
+                    <div className="binder-placeholder" aria-hidden="true">
+                      {item.name.slice(0, 2).toUpperCase()}
+                    </div>
                   )}
-                  <figcaption>
-                    <strong>{item.name}</strong>
-                    <small>{formatCurrency(resolveMarketPrice(item))}</small>
-                  </figcaption>
-                </figure>
-              ))}
-              {binderItems.length < BINDER_PAGE_SIZE
-                ? Array.from({ length: BINDER_PAGE_SIZE - binderItems.length }).map((_, index) => (
-                    <div key={`binder-placeholder-${index}`} className="binder-card placeholder" />
-                  ))
-                : null}
-            </div>
+                </div>
+                <figcaption>
+                  <strong>{item.name}</strong>
+                  <small>{formatCurrency(resolveMarketPrice(item))}</small>
+                </figcaption>
+              </figure>
+            ))}
+            {binderItems.length < BINDER_PAGE_SIZE
+              ? Array.from({ length: BINDER_PAGE_SIZE - binderItems.length }).map((_, index) => (
+                  <figure key={`binder-placeholder-${index}`} className="binder-card placeholder" aria-hidden="true">
+                    <div className="art">
+                      <div className="binder-placeholder" />
+                    </div>
+                    <figcaption />
+                  </figure>
+                ))
+              : null}
+          </div>
             <div className="binder-controls">
               <button type="button" onClick={goToPreviousBinderPage} disabled={binderPage === 1}>
                 ‹
@@ -1205,9 +1245,20 @@ function App() {
                   <ul>
                     {searchResults.map((card) => (
                       <li key={card.id}>
-                        <button type="button" onClick={() => openVersionSelection(card)}>
+                        <button
+                          type="button"
+                          className="search-result"
+                          onClick={() => openVersionSelection(card)}
+                        >
                           {card.imageSmall ? (
-                            <img src={card.imageSmall} alt={card.name} />
+                            <img
+                              src={card.imageSmall}
+                              alt={card.name}
+                              loading="lazy"
+                              decoding="async"
+                              width={48}
+                              height={67}
+                            />
                           ) : (
                             <span className="card-placeholder">{card.name.slice(0, 2).toUpperCase()}</span>
                           )}
@@ -1233,7 +1284,14 @@ function App() {
             <form className="stack" onSubmit={handleAddCard}>
               <div className="selected-card summary">
                 {selectedCard.imageSmall ? (
-                  <img src={selectedCard.imageSmall} alt={selectedCard.name} />
+                  <img
+                    src={selectedCard.imageSmall}
+                    alt={selectedCard.name}
+                    loading="lazy"
+                    decoding="async"
+                    width={160}
+                    height={224}
+                  />
                 ) : (
                   <span className="card-placeholder">{selectedCard.name.slice(0, 2).toUpperCase()}</span>
                 )}
@@ -1493,7 +1551,14 @@ function App() {
           <form className="stack" onSubmit={handleEditSubmit}>
             <div className="selected-card summary">
               {editingEntry.imageSmall ? (
-                <img src={editingEntry.imageSmall} alt={editingEntry.name} />
+                <img
+                  src={editingEntry.imageSmall}
+                  alt={editingEntry.name}
+                  loading="lazy"
+                  decoding="async"
+                  width={160}
+                  height={224}
+                />
               ) : (
                 <span className="card-placeholder">{editingEntry.name.slice(0, 2).toUpperCase()}</span>
               )}

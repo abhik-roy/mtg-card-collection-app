@@ -1,0 +1,86 @@
+:root {
+  color-scheme: dark;
+}
+
+/* Binder normalization & typography tweaks */
+.binder-page {
+  grid-auto-rows: 1fr;
+}
+
+.binder-card {
+  display: grid;
+  grid-template-rows: minmax(0, auto) minmax(0, 1fr);
+}
+
+.binder-card .art,
+.card-thumb {
+  aspect-ratio: 5 / 7;
+  width: 100%;
+}
+
+.binder-card .art {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.binder-card img,
+.card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  aspect-ratio: 5 / 7;
+}
+
+.card-cell img,
+.selected-card.summary img {
+  width: clamp(64px, 8vw, 108px);
+  height: auto;
+  aspect-ratio: 5 / 7;
+  object-fit: cover;
+}
+
+.binder-card figcaption {
+  min-height: 3.5lh;
+}
+
+.binder-card figcaption strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-cell strong,
+.listing-card header {
+  text-wrap: balance;
+}
+
+.collection-table td,
+.collection-table th {
+  text-wrap: pretty;
+}
+
+.card-thumb {
+  border-radius: 18px 18px 0 0;
+  overflow: hidden;
+}
+
+.binder-card.placeholder {
+  min-height: 220px;
+}
+
+.binder-page .binder-placeholder {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 7;
+  display: grid;
+  place-items: center;
+}
+
+@supports not (text-wrap: balance) {
+  .card-cell strong,
+  .listing-card header {
+    word-break: break-word;
+  }
+}
