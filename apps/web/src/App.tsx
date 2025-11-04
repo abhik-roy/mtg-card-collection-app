@@ -240,7 +240,7 @@ function App() {
     setCollectionLoading(true);
     setCollectionError(null);
     try {
-      const data = await apiRequest<CollectionResponse>('/collection?pageSize=200');
+      const data = await apiRequest<CollectionResponse>('/collection?pageSize=100');
       setCollectionData(data);
     } catch (error) {
       setCollectionError(error instanceof Error ? error.message : 'Unable to load collection.');
