@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import './styles/app.base.css';
 import './styles/app.modern.css';
 import { PortfolioAllocation } from './features/portfolio/PortfolioAllocation';
@@ -29,6 +29,8 @@ type CollectionItem = {
   name: string;
   quantity: number;
   finish: string;
+  condition?: string | null;
+  language?: string | null;
   imageSmall?: string | null;
   usd?: number | null;
   usdFoil?: number | null;
@@ -51,6 +53,21 @@ const NAV_TABS: Array<{ id: Tab; label: string; description: string }> = [
   { id: 'portfolio', label: 'Allocation Breakdown', description: 'See how your collection’s value is distributed.' },
 ];
 
+const DEFAULT_ADD_FORM = {
+  cardId: '',
+  quantity: 1,
+  finish: 'NONFOIL',
+  condition: 'NM',
+  acquiredPrice: '',
+};
+
+const DEFAULT_EDIT_FORM = {
+  quantity: 1,
+  finish: 'NONFOIL',
+  condition: 'NM',
+  acquiredPrice: '',
+};
+
 function App() {
   const [form, setForm] = useState<LoginFormState>({ email: '', password: '' });
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -66,29 +83,22 @@ function App() {
   const [collectionError, setCollectionError] = useState<string | null>(null);
   const [collectionSearchTerm, setCollectionSearchTerm] = useState('');
   const [collectionFinishFilter, setCollectionFinishFilter] = useState<string>('ALL');
+  const [collectionNotice, setCollectionNotice] = useState<string | null>(null);
+  const [addForm, setAddForm] = useState({ ...DEFAULT_ADD_FORM });
+  const [adding, setAdding] = useState(false);
+  const [importPayload, setImportPayload] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ ...DEFAULT_EDIT_FORM });
+  const [updating, setUpdating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [portfolioSummary, setPortfolioSummary] = useState<PortfolioSummary | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void refreshSession();
-  }, []);
-
-  useEffect(() => {
-    if (!session) return;
-    void loadCollection();
-  }, [session]);
-
-  useEffect(() => {
-    if (!session) return;
-    if (activeTab === 'portfolio' && !portfolioSummary && !portfolioLoading) {
-      void loadPortfolio();
-    }
-  }, [session, activeTab, portfolioSummary, portfolioLoading]);
-
   const handleInputChange =
-    (field: keyof LoginFormState) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    (field: keyof LoginFormState) => (event: ChangeEvent<HTMLInputElement>) => {
       setForm((previous) => ({ ...previous, [field]: event.target.value }));
     };
 
@@ -139,20 +149,27 @@ function App() {
     }
   };
 
-  const loadCollection = async () => {
+  const loadCollection = useCallback(async () => {
     setCollectionLoading(true);
     setCollectionError(null);
     try {
       const data = await apiRequest<CollectionResponse>('/collection?pageSize=100');
       setCollectionData(data);
+      setEditingId((current) => {
+        if (current && !data.items.some((entry) => entry.id === current)) {
+          setEditForm({ ...DEFAULT_EDIT_FORM });
+          return null;
+        }
+        return current;
+      });
     } catch (error) {
       setCollectionError(error instanceof Error ? error.message : 'Unable to load collection.');
     } finally {
       setCollectionLoading(false);
     }
-  };
+  }, []);
 
-  const loadPortfolio = async () => {
+  const loadPortfolio = useCallback(async () => {
     setPortfolioLoading(true);
     setPortfolioError(null);
     try {
@@ -163,9 +180,149 @@ function App() {
     } finally {
       setPortfolioLoading(false);
     }
+  }, []);
+
+  const handleAddFormChange =
+    (field: keyof typeof DEFAULT_ADD_FORM) =>
+    (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const value = event.target.value;
+      setAddForm((previous) => ({
+        ...previous,
+        [field]: field === 'quantity' ? Number(value) : value,
+      }));
+    };
+
+  const handleEditFormChange =
+    (field: keyof typeof DEFAULT_EDIT_FORM) =>
+    (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const value = event.target.value;
+      setEditForm((previous) => ({
+        ...previous,
+        [field]: field === 'quantity' ? Number(value) : value,
+      }));
+    };
+
+  const handleAddSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!addForm.cardId.trim()) {
+      setCollectionNotice('Card ID is required.');
+      return;
+    }
+    setAdding(true);
+    setCollectionNotice(null);
+    try {
+      await apiRequest('/collection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cardId: addForm.cardId.trim(),
+          quantity: Number.isFinite(addForm.quantity) ? addForm.quantity : 1,
+          finish: addForm.finish,
+          condition: addForm.condition,
+          acquiredPrice:
+            addForm.acquiredPrice === '' ? undefined : Number.parseFloat(addForm.acquiredPrice),
+        }),
+      });
+      setCollectionNotice('Card added to your collection.');
+      setAddForm({ ...DEFAULT_ADD_FORM });
+      await loadCollection();
+    } catch (error) {
+      setCollectionNotice(error instanceof Error ? error.message : 'Unable to add card.');
+    } finally {
+      setAdding(false);
+    }
   };
 
-  const refreshSession = async () => {
+  const handleImportSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!importPayload.trim()) {
+      setCollectionNotice('Import payload cannot be empty.');
+      return;
+    }
+    setImporting(true);
+    setCollectionNotice(null);
+    try {
+      await apiRequest('/collection/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payload: importPayload,
+          format: 'auto',
+        }),
+      });
+      setCollectionNotice('Import completed.');
+      setImportPayload('');
+      await loadCollection();
+    } catch (error) {
+      setCollectionNotice(error instanceof Error ? error.message : 'Unable to import collection data.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const startEditing = (entry: CollectionItem) => {
+    setEditingId(entry.id);
+    setEditForm({
+      quantity: entry.quantity,
+      finish: entry.finish,
+      condition: entry.condition ?? 'NM',
+      acquiredPrice: entry.acquiredPrice != null ? String(entry.acquiredPrice) : '',
+    });
+    setCollectionNotice(null);
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditForm({ ...DEFAULT_EDIT_FORM });
+  };
+
+  const handleEditSave = async () => {
+    if (!editingId) return;
+    setUpdating(true);
+    setCollectionNotice(null);
+    try {
+      await apiRequest(`/collection/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quantity: Number.isFinite(editForm.quantity) ? editForm.quantity : 1,
+          finish: editForm.finish,
+          condition: editForm.condition,
+          acquiredPrice:
+            editForm.acquiredPrice === '' ? null : Number.parseFloat(editForm.acquiredPrice),
+        }),
+      });
+      setCollectionNotice('Entry updated.');
+      setEditingId(null);
+      setEditForm({ ...DEFAULT_EDIT_FORM });
+      await loadCollection();
+    } catch (error) {
+      setCollectionNotice(error instanceof Error ? error.message : 'Unable to update entry.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDelete = async (entry: CollectionItem) => {
+    const confirmed = window.confirm(`Remove ${entry.name} from your collection?`);
+    if (!confirmed) return;
+    setDeletingId(entry.id);
+    setCollectionNotice(null);
+    try {
+      await apiRequest(`/collection/${entry.id}`, { method: 'DELETE' }, false);
+      setCollectionNotice('Entry removed.');
+      if (editingId === entry.id) {
+        cancelEditing();
+      }
+      await loadCollection();
+    } catch (error) {
+      setCollectionNotice(error instanceof Error ? error.message : 'Unable to remove entry.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const refreshSession = useCallback(async () => {
     setLoadingSession(true);
     try {
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -185,9 +342,25 @@ function App() {
     } finally {
       setLoadingSession(false);
     }
-  };
+  }, []);
 
-  const finishOptions = useMemo(() => {
+  useEffect(() => {
+    void refreshSession();
+  }, [refreshSession]);
+
+  useEffect(() => {
+    if (!session) return;
+    void loadCollection();
+  }, [session, loadCollection]);
+
+  useEffect(() => {
+    if (!session) return;
+    if (activeTab === 'portfolio' && !portfolioSummary && !portfolioLoading) {
+      void loadPortfolio();
+    }
+  }, [session, activeTab, portfolioSummary, portfolioLoading, loadPortfolio]);
+
+  const availableFinishes = useMemo(() => {
     if (!collectionData?.items) return [] as string[];
     return Array.from(new Set(collectionData.items.map((item) => item.finish))).sort((a, b) =>
       a.localeCompare(b),
@@ -219,6 +392,10 @@ function App() {
     }, 0);
     return { total: Number(total.toFixed(2)), unique: filteredCollectionItems.length };
   }, [filteredCollectionItems]);
+
+  const finishChoices =
+    availableFinishes.length > 0 ? availableFinishes : ['NONFOIL', 'FOIL', 'ETCHED'];
+  const conditionChoices = ['NM', 'LP', 'MP', 'HP', 'DMG'];
 
   if (loadingSession) {
     return (
@@ -358,7 +535,7 @@ function App() {
                     aria-label="Filter by finish"
                   >
                     <option value="ALL">All finishes</option>
-                    {finishOptions.map((finish) => (
+                    {availableFinishes.map((finish) => (
                       <option key={finish} value={finish}>
                         {finish === 'NONFOIL'
                           ? 'Non-foil'
@@ -369,12 +546,120 @@ function App() {
                       </option>
                     ))}
                   </select>
-                </div>
+              </div>
+            </div>
+
+            {collectionNotice ? <div className="collection-notice">{collectionNotice}</div> : null}
+
+            <div className="form-panels">
+              <div className="panel form-panel">
+                <h3>Add card</h3>
+                <form onSubmit={handleAddSubmit}>
+                  <div className="form-grid">
+                    <label>
+                      <span>Card ID</span>
+                      <input
+                        type="text"
+                        value={addForm.cardId}
+                        onChange={handleAddFormChange('cardId')}
+                        className="table-input"
+                        placeholder="Scryfall UUID"
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span>Quantity</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={addForm.quantity}
+                        onChange={handleAddFormChange('quantity')}
+                        className="table-input"
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span>Finish</span>
+                      <select
+                        value={addForm.finish}
+                        onChange={handleAddFormChange('finish')}
+                        className="table-select"
+                      >
+                        {finishChoices.map((finish) => (
+                          <option key={finish} value={finish}>
+                            {finish}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Condition</span>
+                      <select
+                        value={addForm.condition}
+                        onChange={handleAddFormChange('condition')}
+                        className="table-select"
+                      >
+                        {conditionChoices.map((condition) => (
+                          <option key={condition} value={condition}>
+                            {condition}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Acquired price</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={addForm.acquiredPrice}
+                        onChange={handleAddFormChange('acquiredPrice')}
+                        className="table-input"
+                        placeholder="Optional"
+                      />
+                    </label>
+                  </div>
+                  <div className="form-actions">
+                    <button type="submit" className="primary-button" disabled={adding}>
+                      {adding ? 'Adding…' : 'Add card'}
+                    </button>
+                  </div>
+                </form>
               </div>
 
-              {collectionLoading ? (
-                <div className="panel muted">Loading your collection…</div>
-              ) : collectionError ? (
+              <div className="panel form-panel">
+                <h3>Bulk import</h3>
+                <form onSubmit={handleImportSubmit}>
+                  <label>
+                    <span>Paste collection text</span>
+                    <textarea
+                      rows={4}
+                      value={importPayload}
+                      onChange={(event) => setImportPayload(event.target.value)}
+                      className="table-textarea"
+                      placeholder="1 Lightning Bolt (m11) 150\n2 Counterspell (ice) 78 [FOIL]"
+                    />
+                  </label>
+                  <div className="form-actions">
+                    <button type="submit" className="ghost-button" disabled={importing}>
+                      {importing ? 'Importing…' : 'Import list'}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={() => setImportPayload('')}
+                      disabled={importing || importPayload.length === 0}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            {collectionLoading ? (
+              <div className="panel muted">Loading your collection…</div>
+            ) : collectionError ? (
                 <div className="panel error">{collectionError}</div>
               ) : filteredCollectionItems.length > 0 ? (
                 <div className="panel overflow">
@@ -385,39 +670,145 @@ function App() {
                         <th>Qty</th>
                         <th>Finish</th>
                         <th>Market price</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredCollectionItems.map((item) => (
-                        <tr key={item.id}>
-                          <td>
-                            <div className="card-cell">
-                              {item.imageSmall ? (
-                                <img
-                                  src={item.imageSmall}
-                                  alt={item.name}
-                                  loading="lazy"
-                                  decoding="async"
-                                  width={80}
-                                  height={112}
+                      {filteredCollectionItems.map((item) => {
+                        const isEditing = editingId === item.id;
+                        return (
+                          <tr key={item.id}>
+                            <td>
+                              <div className="card-cell">
+                                {item.imageSmall ? (
+                                  <img
+                                    src={item.imageSmall}
+                                    alt={item.name}
+                                    loading="lazy"
+                                    decoding="async"
+                                    width={80}
+                                    height={112}
+                                  />
+                                ) : (
+                                  <span className="card-placeholder">{item.name.slice(0, 2).toUpperCase()}</span>
+                                )}
+                                <div>
+                                  <strong>{item.name}</strong>
+                                  <small>{item.setCode.toUpperCase()} · #{item.collectorNumber}</small>
+                                  {isEditing ? (
+                                    <>
+                                      <label className="inline-field">
+                                        <span>Condition</span>
+                                        <select
+                                          value={editForm.condition}
+                                          onChange={handleEditFormChange('condition')}
+                                          className="table-select"
+                                        >
+                                          {conditionChoices.map((condition) => (
+                                            <option key={condition} value={condition}>
+                                              {condition}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </label>
+                                      <label className="inline-field">
+                                        <span>Acquired price</span>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={editForm.acquiredPrice}
+                                          onChange={handleEditFormChange('acquiredPrice')}
+                                          className="table-input"
+                                          placeholder="Optional"
+                                        />
+                                      </label>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {item.condition ? (
+                                        <span className="muted">Condition {item.condition}</span>
+                                      ) : null}
+                                      {item.acquiredPrice != null ? (
+                                        <span className="muted">Cost basis {formatCurrency(item.acquiredPrice)}</span>
+                                      ) : null}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              {isEditing ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={editForm.quantity}
+                                  onChange={handleEditFormChange('quantity')}
+                                  className="table-input"
                                 />
                               ) : (
-                                <span className="card-placeholder">{item.name.slice(0, 2).toUpperCase()}</span>
+                                item.quantity
                               )}
-                              <div>
-                                <strong>{item.name}</strong>
-                                <small>{item.setCode.toUpperCase()} · #{item.collectorNumber}</small>
-                                {item.acquiredPrice != null ? (
-                                  <span className="muted">Cost basis {formatCurrency(item.acquiredPrice)}</span>
-                                ) : null}
+                            </td>
+                            <td>
+                              {isEditing ? (
+                                <select
+                                  value={editForm.finish}
+                                  onChange={handleEditFormChange('finish')}
+                                  className="table-select"
+                                >
+                                  {finishChoices.map((finish) => (
+                                    <option key={finish} value={finish}>
+                                      {finish}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                item.finish
+                              )}
+                            </td>
+                            <td>{formatCurrency(resolveMarketPrice(item))}</td>
+                            <td className="actions-cell">
+                              <div className="row-actions">
+                                {isEditing ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="primary-button"
+                                      onClick={handleEditSave}
+                                      disabled={updating}
+                                    >
+                                      {updating ? 'Saving…' : 'Save'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="ghost-button"
+                                      onClick={cancelEditing}
+                                      disabled={updating}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button type="button" className="ghost-button" onClick={() => startEditing(item)}>
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="ghost-button danger"
+                                      onClick={() => handleDelete(item)}
+                                      disabled={deletingId === item.id}
+                                    >
+                                      {deletingId === item.id ? 'Removing…' : 'Delete'}
+                                    </button>
+                                  </>
+                                )}
                               </div>
-                            </div>
-                          </td>
-                          <td>{item.quantity}</td>
-                          <td>{item.finish}</td>
-                          <td>{formatCurrency(resolveMarketPrice(item))}</td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
